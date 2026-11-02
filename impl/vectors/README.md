@@ -532,7 +532,9 @@ A statement has no `integrity_mode` of its own (§22.3, spec-gap 77): the one in
 `{"relay":"bind"|"unbind","device","identity"}` (presence source), `advance`. Emissions: `send notify {to, subscription, seq, state, reason?, body}`,
 `send reject {to, session, reason}`, `send error {to, in_reply_to, reason, retry_after?}`, `{"publication": {"stream", "state"}}`, `{"provenance": {"stream","processor"}}`,
 `{"subscription": {"id","state": "replaced"|"terminated"}}`, `drop` reasons. Snapshots `publications`, `subscriptions` and
-`presence`.
+`presence`. A subscription is the subscribing device's (§9.3, spec-gap 177): a `subscribe` replaces, and one with
+`expires_in: 0` terminates, the subscription with the same device (`from`), `target` and `events`; two devices of one
+identity hold one each.
 
 **Presence records** (Presence Profile P§3, P§4, P§8; v0.17, spec-gaps 134, 135). `context.identities` maps each device
 to its identity; `context.presence_grace` is T-Presence-Grace (default 60). A received `presence` (`from`, `subject`,

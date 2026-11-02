@@ -579,7 +579,7 @@ A presence record may be visible only to: existing contacts, same organization, 
 
 - `to` is the authority answering for the target (the target's relay or domain endpoint per its DID document); `target` is the subject. A subscriber reaches that authority as any device reaches a relay: it binds there (§13.2), at the relay or endpoint the target's DID document names or, when the target has none (a `did:key` identity), the one the target's reachability hint names (§8.3). A hint-located authority is hint-sourced (§8.1): its own assertion (below) is a claim from a relay the target says it uses, while the subject-signed records it carries are verified by the subscriber whatever relay carries them (§9.4). The binding has the effects of any other: while it lasts the subscriber is reachable through that relay, and an authority that counts bound devices counts it.
 - `events` names registered event classes (registry `dsip-subscription-event`; initial values: `presence`, `publication`).
-- `expires_in` is the requested subscription lifetime in seconds. Hard caps: 3,600 for `presence`, 86,400 for `publication`; when several event classes are named, the tightest cap applies. A `subscribe` whose `expires_in` exceeds the cap MUST be refused with `error` (reason `policy.subscription-lifetime`); an authority MUST NOT silently clamp, because a clamped lifetime leaves the subscriber's view of its own subscription wrong. Subscriptions are soft state: they expire unless renewed by a fresh `subscribe` for the same `target`+`events` (which replaces the prior subscription). `expires_in: 0` terminates a matching subscription.
+- `expires_in` is the requested subscription lifetime in seconds. Hard caps: 3,600 for `presence`, 86,400 for `publication`; when several event classes are named, the tightest cap applies. A `subscribe` whose `expires_in` exceeds the cap MUST be refused with `error` (reason `policy.subscription-lifetime`); an authority MUST NOT silently clamp, because a clamped lifetime leaves the subscriber's view of its own subscription wrong. Subscriptions are soft state: they expire unless renewed by a fresh `subscribe` for the same `target`+`events` from the same device (which replaces the prior subscription). `expires_in: 0` terminates a matching subscription. A subscription is the subscribing device's (its `from`), so two devices of one identity hold one each for the same target, are notified on their own, and neither's renewal or termination touches the other's (spec-gap 177).
 - Optional fields `claims` (verifiable credential presentations) and `capability` (an opaque authorization token previously issued by the target's authority, e.g. via a contact grant or a broadcast follow token) carry authorization evidence.
 
 #### Authorization
@@ -2735,6 +2735,9 @@ or rejects.
   `wake-register`, `wake`), a `WakeRegistration` credential, a `wake` capability member in `hello` and the reason
   category `wake` (§15.1). A 1.0 receiver that does not implement it refuses the messages as unknown types; no core
   message, schema or rule changes. 116 `wake/` vectors.
+- §9.3: a renewal, and `expires_in: 0`, match the subscribing device's subscription; two devices of one identity
+  hold one each (spec-gap 177). Nothing on the wire changes; an authority that matched per identity replaced one
+  device's subscription with another's.
 
 ---
 

@@ -488,8 +488,9 @@ export class Authority {
   private subscribe(m: JsonObject, subscriber: string): void {
     const target = m["target"] as string;
     const events = m["events"] as string[];
+    // §9.3 (spec-gap 177): a subscription is the subscribing device's; renewal and termination match its device
     const same = (s: Subscription): boolean =>
-      s.subscriber === subscriber && s.target === target && JSON.stringify(s.events) === JSON.stringify(events);
+      s.device === m["from"] && s.target === target && JSON.stringify(s.events) === JSON.stringify(events);
     const prior = this.subscriptions.find(same);
     if (m["expires_in"] === 0) {
       // §9.3: `expires_in: 0` terminates a matching subscription
@@ -504,7 +505,7 @@ export class Authority {
       return void this.emit.push({ send: { type: "reject", to: m["from"]!, session: m["id"]!, reason: "policy.blocked" } });
     }
     if (prior) {
-      // §9.3: a fresh subscribe for the same target+events replaces the prior subscription
+      // §9.3: a fresh subscribe from the same device for the same target+events replaces the prior subscription
       this.subscriptions = this.subscriptions.filter((s) => s !== prior);
       this.emit.push({ subscription: { id: prior.id, state: "replaced" } });
     }
