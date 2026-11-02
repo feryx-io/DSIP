@@ -68,7 +68,8 @@ try {
     out.lookup_ms = t() - tCall;
     out.route = await page.evaluate(() => window.dsip.route());
     out.call_relay = await page.evaluate(() => window.dsip.callRelay());
-    await until(() => window.dsip.state() === 'PROCEEDING', null, 60000);
+    // ringing, or already answered: a callee that answers at once takes the call past PROCEEDING between two polls
+    await until(() => ['PROCEEDING', 'ACTIVE'].includes(window.dsip.state()), null, 60000);
     out.ringing_ms = t() - tCall;
     await until(() => window.dsip.state() === 'ACTIVE', null, Number(process.env.WAIT_S || 600) * 1000);
     out.active_ms = t() - tCall;
