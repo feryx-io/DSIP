@@ -251,8 +251,9 @@ class Authority:
 
     def recv_subscribe(self, m: dict, identity: str) -> None:
         target, events = m["target"], list(m["events"])
+        # §9.3 (spec-gap 177): a subscription is the subscribing device's; renewal and termination match its device
         existing = next((sid for sid, s in self.subscriptions.items()
-                         if s["subscriber"] == identity and s["target"] == target and s["events"] == events), None)
+                         if s["device"] == m["from"] and s["target"] == target and s["events"] == events), None)
         if m["expires_in"] == 0:
             # §9.3: expires_in 0 terminates a matching subscription (no notify is owed to the requester)
             if existing is not None:
@@ -270,7 +271,7 @@ class Authority:
         cap = min(SUBSCRIPTION_EVENTS.get(e, 86400) for e in events)
         lifetime = min(m["expires_in"], cap)
         if existing is not None:
-            # renewal replaces the prior subscription (same target+events)
+            # renewal replaces the prior subscription (same device, target and events)
             del self.subscriptions[existing]
             self.emit({"subscription": {"id": existing, "state": "replaced"}})
         sub = {"subscriber": identity, "device": m["from"], "target": target, "events": events,

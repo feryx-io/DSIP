@@ -5137,3 +5137,36 @@ Choices:
 **Decided (2026-11-01, user: "176 (a)"): (a).** W§4.2 says so; dsip-rs's mailbox implements it (`dsip-mailbox`'s
 `service.rs`, `crates/dsip-mailbox/tests/wake.rs`). No vector changes: the `wake/` vectors' register checks are the
 profile's own, run after the binding's.
+
+## 177. §9.3 — whose subscription a renewal replaces
+
+**Found (2026-11-01, sealed presence on the native phone, dsip-rs #30).** §9.3: subscriptions "expire unless renewed
+by a fresh `subscribe` for the same `target`+`events` (which replaces the prior subscription)", and `expires_in: 0`
+"terminates a matching subscription". Neither says the same *what*: the subscriber's identity or the subscribing
+device. dsip-rs's authority (`dsip-broadcast` `authority.rs`) matches per subscriber identity, so a second device of
+one identity that subscribes to the same target replaces the first device's subscription, and only the second is
+notified (the authority notifies the subscription's `device`). Two cases break:
+
+- P§12.5: each device of a sealing subject watches its own identity (P§6 rule 1) to learn the epochs its siblings
+  reach. With two devices, only the last to subscribe holds that watch; the other never moves to a sibling's epoch,
+  and grantees given only the new key cannot read it (`presence-key-unknown`).
+- A user's phone and laptop following the same contact: each renewal moves the subscription to the device that
+  renewed, and the other's view goes stale until it renews in turn.
+
+Choices:
+
+- **(a) Per subscribing device.** A subscription belongs to the device that sent the `subscribe` (its `from`). A
+  renewal or `expires_in: 0` matches the same device, `target` and `events`. Each device of an identity holds its
+  own, and is admitted, counted and notified on its own. A grant presented by one device admits that device's
+  subscription only. A revocation (P§7) ends every subscription the grant admitted, whichever device holds it.
+- **(b) Per subscriber identity, notified to every bound device.** One subscription per `(identity, target, events)`,
+  as now, delivered to each of the identity's devices bound at the authority. This needs a bound-device fan-out the
+  authority does not otherwise do. A device bound elsewhere (a subscriber reaching a hint-located authority, §9.3)
+  is not bound there, so it is still missed.
+- **(c) Per subscriber identity, as implemented.** The last subscribing device holds it. P§12.5's own watch then
+  works for one device only, so the profile would have to say that siblings learn epochs some other way.
+
+**Decided (2026-11-01, user: "(a) Per device"): (a).** §9.3 says so, in place (A.16). Vector
+`state/broadcast-authority-renewal-per-device`: two devices of one identity subscribe to one target, both are
+notified, and one's renewal and termination leave the other's in place (the Python harness matching per identity
+fails it). The Python harness, impl-ts and dsip-rs's authority match on the subscription's device.

@@ -1515,6 +1515,30 @@ def vectors() -> list[dict]:
               [{"subscription": {"id": SUB3, "state": "terminated"}}], subscriptions=subsnap(SUB1, ALICE, BOB, ["presence"], 1, NOW + 3600)),
         bstep({"recv": subscribe("sub-5", APH, STREAM, ["publication"], 0, NOW + 5)}, [{"drop": "no-matching-subscription"}]),
     ]))
+    SUB4, SUB5 = uid("sub-4", NOW + 4), uid("sub-5", NOW + 5)
+    out.append(btrace("broadcast-authority-renewal-per-device",
+                      "A subscription is the subscribing device's (spec-gap 177): two devices of one identity each hold one for the same "
+                      "target and events, both are notified, and a renewal or expires_in 0 from one leaves the other's in place.",
+                      ["§9.3"], [
+        bstep({"local": "policy", "target": BOB, "mode": "public"}, []),
+        bstep({"recv": subscribe("sub-1", APH, BOB, ["presence"], 3600, NOW + 1)},
+              [notify(APH, SUB1, 1, "active", {"event": "presence", "state": "offline"})],
+              subscriptions=subsnap(SUB1, ALICE, BOB, ["presence"], 1, NOW + 3600)),
+        bstep({"recv": subscribe("sub-2", ALA, BOB, ["presence"], 3600, NOW + 2)},
+              [notify(ALA, SUB2, 1, "active", {"event": "presence", "state": "offline"})],
+              subscriptions={**subsnap(SUB1, ALICE, BOB, ["presence"], 1, NOW + 3600), **subsnap(SUB2, ALICE, BOB, ["presence"], 1, NOW + 3600)}),
+        bstep({"relay": "bind", "device": BPH, "identity": BOB},
+              [notify(APH, SUB1, 2, "active", {"event": "presence", "state": "available"}),
+               notify(ALA, SUB2, 2, "active", {"event": "presence", "state": "available"})]),
+        bstep({"recv": subscribe("sub-3", ALA, BOB, ["presence"], 600, NOW + 3)},
+              [{"subscription": {"id": SUB2, "state": "replaced"}}, notify(ALA, SUB3, 1, "active", {"event": "presence", "state": "available"})],
+              subscriptions={**subsnap(SUB1, ALICE, BOB, ["presence"], 2, NOW + 3600), **subsnap(SUB3, ALICE, BOB, ["presence"], 1, NOW + 600)}),
+        bstep({"recv": subscribe("sub-4", APH, BOB, ["presence"], 0, NOW + 4)},
+              [{"subscription": {"id": SUB1, "state": "terminated"}}], subscriptions=subsnap(SUB3, ALICE, BOB, ["presence"], 1, NOW + 600)),
+        bstep({"recv": subscribe("sub-5", APH, BOB, ["presence"], 0, NOW + 5)}, [{"drop": "no-matching-subscription"}],
+              subscriptions=subsnap(SUB3, ALICE, BOB, ["presence"], 1, NOW + 600)),
+        bstep({"relay": "unbind", "device": BPH, "identity": BOB}, [notify(ALA, SUB3, 2, "active", {"event": "presence", "state": "offline"})]),
+    ]))
     out.append(btrace("broadcast-authority-publisher-binding",
                       "Only the verified publisher (or its delegate) may publish or withdraw its streams; stream_id is namespaced under the publisher; older records never replace newer ones.",
                       ["§22.1", "§8.1", "§8.3"], [
