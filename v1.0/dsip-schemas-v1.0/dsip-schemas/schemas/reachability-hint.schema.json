@@ -60,6 +60,27 @@
     "seq": {
       "type": "integer",
       "minimum": 0
+    },
+    "key_agreement": {
+      "type": "object",
+      "properties": {
+        "protected": {
+          "type": "string"
+        },
+        "payload": {
+          "type": "string"
+        },
+        "signature": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "protected",
+        "payload",
+        "signature"
+      ],
+      "additionalProperties": false,
+      "description": "1.x, spec-gap 179: the subject's current key agreement delegation (spec 7.3), an envelope object as the delegations header carries them; verified against the subject, and a hint whose member does not verify is refused."
     }
   },
   "required": [

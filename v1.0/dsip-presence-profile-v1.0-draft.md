@@ -262,8 +262,10 @@ routing (P§6) read only fields that stay in clear, so they do not change. Seali
 
 ### P§12.1 Keys
 
-Every device acting for the subject holds the identity's X25519 key agreement secret (§10.4: the 32-byte private key
-of its `keyAgreement` method, or for `did:key` the secret derived from the identity's Ed25519 key, M§6.9). `s` is that
+Every device acting for the subject holds the identity's X25519 key agreement secret (§7.3, §10.4: the 32-byte private
+key of its `keyAgreement` method, else of its current key agreement delegation (spec-gap 179), else for `did:key` the
+secret derived from the identity's Ed25519 key, M§6.9). A new key agreement key changes `s`, and so every key below: it
+is a rotation (P§12.5). `s` is that
 secret with RFC 7748's clamping applied (`decodeScalar25519`), so every encoding of the key gives the same `s`. A
 grantee never holds it. Every key and tag below is derived from `s`, so no key is ever sent between the subject's devices.
 HKDF is HKDF-SHA256 (RFC 5869) with an empty salt; strings are UTF-8; `‖` is concatenation.

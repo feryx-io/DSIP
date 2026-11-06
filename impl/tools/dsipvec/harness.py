@@ -101,6 +101,11 @@ def run_dht_tail(v: dict, verdict: Verdict, ver) -> dict:
         return vv.to_expect()
     if list(hint_validator().iter_errors(p)):
         return Verdict.reject("schema-invalid").to_expect()
+    # 1.x, spec-gap 179: a key agreement delegation the hint carries verifies for its subject, or the hint is refused
+    if "key_agreement" in p:
+        from . import key_agreement as KA
+        if KA.verify(p["key_agreement"], ctx["now"], p["subject"], ctx)[0] is None:
+            return Verdict.reject("key-agreement-invalid").to_expect()
     out = verdict.to_expect()
     existing = ctx.get("existing")
     winner, conflict = "input", "none"
@@ -248,6 +253,9 @@ def run_vector(v: dict) -> Result:
         elif kind == "wake":
             from . import wake as WAKE
             actual = WAKE.run(v)
+        elif kind == "key-agreement":
+            from . import key_agreement as KA
+            actual = KA.run(v)
         elif kind == "did-webvh":
             i = v["input"]
             actual = WEBVH.resolve(i["did"], i["log"], i["witness"], i["cache"], i["now"])

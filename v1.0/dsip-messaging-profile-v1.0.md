@@ -941,7 +941,9 @@ recipient key is the X25519 `keyAgreement` key in the recipient identity's DID d
 introductions; how they receive it is deployment-defined, like the controller key itself. Deriving
 it from the identity's Ed25519 key the way `did:key` does is one arrangement (the reference
 implementation's); an identity MAY instead publish an independent X25519 key and provision it to
-its devices.
+its devices. A `did:key` identity, which has no document to publish one in, signs a key agreement
+delegation naming it (core §7.3, spec-gap 179), and the recipient key is then that key; the derived key's
+private half is the identity's signing scalar, so a device holding it holds the identity key in effect.
 
 ### M§6.10 Non-repudiation (stated)
 

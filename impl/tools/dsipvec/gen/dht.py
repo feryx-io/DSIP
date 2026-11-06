@@ -94,4 +94,6 @@ def vectors() -> list[dict]:
                   "not deduplicated, §8.3 decides a re-observed hint (§12.9, spec-gap 141).", ["§12.9", "§8.3"], held,
                   accept(type="reachability-hint", signer=ALICE, identity=ALICE, winner="input", conflict="none"),
                   ctx=default_context(seen_ids=[hint("hh", ALICE, ALICE, 3, at=NOW - 1000)["id"]])))
+    from .key_agreement import hint_vectors
+    out += hint_vectors(hint, dv, accept)
     return out

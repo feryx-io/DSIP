@@ -174,6 +174,7 @@ implementation under test MUST emit that token when it signals the failure.
 | `hello-in-reply-to-mismatch` | relay `hello.in_reply_to` ≠ the client hello id actually sent (§13.2, §20.5) | |
 | `hello-required` | session traffic before a verified `hello` (§13.2) | `transport.hello-required` |
 | `hint-subject-mismatch` | DHT hint whose verified identity is not its `subject` (§8.3) | |
+| `key-agreement-invalid` | DHT hint whose `key_agreement` member does not verify as a key agreement delegation of its `subject` (DHT Hints Profile §4; core §7.3; spec-gap 179); checked last, after `hint-subject-mismatch`, the version check and `schema-invalid` | |
 | `binding-ice-mode` | `transports[].ice` absent or not `trickle` (B§2) | `media.unsupported` |
 | `binding-sdp-missing` | webrtc descriptor without `sdp` (B§2) | `media.offer-required` on offers, `media.failed` on answers |
 | `binding-sdp-invalid` | `sdp` is not SDP (B§2) | `media.unsupported` / `media.failed` |
@@ -825,6 +826,11 @@ subject). Expect: envelope verdict plus, on accept, `"winner": "input" |
 "same-seq-live"` per the §8.3 rules (higher `seq` wins; expired records are
 invalid; same key + same `seq` + differing content → `same-seq-live`, which
 the profile treats as a warning — the existing record is kept).
+
+Last, after the envelope pipeline, `hint-subject-mismatch` (the profile's §4 step 1) and the version and schema
+checks (step 2), a hint with a `key_agreement` member (1.x, spec-gap 179) is refused with
+`key-agreement-invalid` unless the member verifies as a key agreement delegation (kind `key-agreement`, check
+`delegation`) for the hint's `subject` at `context.now`, under the vector's `context` (its documents and delegations).
 
 ## Kind: `did-webvh`
 
@@ -2307,6 +2313,35 @@ presents, and the SHAKEN PASSporT it signs under its own STIR certificate when i
 
 Keys are P-256 scalars from `sha256("dsip-vector-tn:" + name)`. Signatures use RFC 6979 deterministic nonces, so the
 vectors regenerate byte for byte.
+
+## Kind: `key-agreement`
+
+Key agreement delegation (core §7.3, 1.x; spec-gap 179): an identity-signed credential naming an independent X25519 key,
+which devices hold so that they open what is sealed to the identity without holding its signing key. Payload schema:
+`key-agreement-delegation` in the core set (not a message type: not in the dispatcher). `context` is the usual one
+(`now`, `did_documents`, `delegations`); `input.check` selects:
+
+| check | input | expect |
+|---|---|---|
+| `delegation` | `delegation` (an envelope object, or anything else), `subject?` | `accept {subject, key, x25519_pk_hex, expires_at}`, or in order `credential-invalid` → `schema-invalid` → `not-subject-signed` → `subject-mismatch` → `validity-invalid` → `not-yet-valid` → `expired` |
+| `recipient-key` | `did`, `delegations` (a list), `document_key_agreement?` (multibase) | `accept {source, key?, x25519_pk_hex?}` |
+
+**Verifying one** (`delegation`): `credential-invalid` unless it passes stages 2–6 of the pipeline as a delegation does
+(shape, header, `kid` resolution under `context`, signature, payload parse with the §10.3 rules; no core-field check, no
+replay window, no dedup). Then `schema-invalid` unless the payload is valid against `key-agreement-delegation` and its
+`key` decodes to `0xec 0x01` followed by 32 bytes (the pattern admits strings that do not);
+`not-subject-signed` unless the DID of the signing `kid` is the payload's `subject` (a device's key never counts, even
+under a live delegation); `subject-mismatch` when `input.subject` is given and differs; `validity-invalid` unless
+`issued_at` < `expires_at` ≤ `issued_at` + 31,536,000; `not-yet-valid` when `issued_at` > `now` + 300; `expired` when
+`now` ≥ `expires_at`. `key` is the payload's (multibase base58btc of `0xec 0x01` and the 32-byte key); `x25519_pk_hex`
+those 32 bytes in lower-case hex.
+
+**The recipient key** (`recipient-key`, §7.3 and §10.4 rule 3): `source` is `document` when
+`document_key_agreement` is given (its key); else `delegation`, the current one of `delegations`: of those that verify
+(as above, with `input.did` as the subject) the one with the greatest `issued_at`, ties to the smaller `key` compared
+as strings; else `derived` for a `did:key` (the X25519 public key the did:key method derives from the Ed25519 public
+key: the Montgomery `u = (1 + y) / (1 − y) mod 2^255 − 19`, `key` its multibase); else `none`, with no `key` and no
+`x25519_pk_hex`.
 
 ## Kind: `wake`
 
