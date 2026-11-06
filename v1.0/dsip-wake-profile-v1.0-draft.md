@@ -3,7 +3,8 @@
 **Status:** DRAFT, companion profile to DSIP 1.0. Cite as `W§n`. It collects spec-gaps 169–175, decided 2026-10-31
 ("all (a)") on the outline (`impl/docs/wake-profile-outline.md`); erratum 2026-10-31 (W§5.2 `session`, W§6
 `on_behalf_of`: an invite carries neither field), found implementing the relay; spec-gap 176 (W§4.2, a mailbox's
-owner operation) decided 2026-11-01, found implementing the mailbox. It adds message types, a credential
+owner operation) decided 2026-11-01, found implementing the mailbox; spec-gap 178 (W§3, W§5.3: an iOS device's two
+APNs tokens) decided 2026-11-06, found implementing the iOS app. It adds message types, a credential
 and a capability member, which §11.4 allows in 1.x (spec-gap 163 (a)). Schemas: `v1.0/dsip-wake-schemas-draft/`.
 Conformance: the `wake/` vectors.
 
@@ -29,8 +30,9 @@ Reachability never depends on a wake: a waker that does not implement this profi
 
 ## W§2 Roles
 
-- **Device**: one app install, a delegated device (§7.4). It holds a platform push token: a PushKit VoIP token on
-  iOS, an FCM registration token on Android.
+- **Device**: one app install, a delegated device (§7.4). It holds a platform push token: an FCM registration token on
+  Android; on iOS two, a PushKit VoIP token for calls and an APNs alert token for messages, as APNs takes each for
+  its own topic only (spec-gap 178).
 - **Push gateway**: a `service`-class identity (§7.1) run by the app's publisher, the only party holding the APNs key
   and FCM account the app's pushes need. Its DID document names a service entry of type `DSIPWake` whose
   `serviceEndpoint` is an `https` URI.
@@ -57,7 +59,7 @@ or a core `error` whose `in_reply_to` names the request and whose `reason` is a 
 a transport failure. The gateway verifies the request as any receiver does (§10.2, §12.9, the 300 s replay window,
 its own `seen_ids`); `to` is the gateway's DID.
 
-## W§3 Enrolment at the gateway (spec-gaps 173, 175)
+## W§3 Enrolment at the gateway (spec-gaps 173, 175, 178)
 
 A device makes a **wake key**: an Ed25519 key pair for this enrolment, never used for anything else. It sends:
 
@@ -80,14 +82,17 @@ A device makes a **wake key**: an Ed25519 key pair for this enrolment, never use
 - `from` is the `did:key` of the wake key, which signs the envelope. It has no delegation and names no identity: the
   gateway never learns the device's DID (spec-gap 175).
 - `provider`: registry `dsip-wake-provider` (W§8.2), `apns` or `fcm`.
-- `app`: the APNs topic (the bundle ID with `.voip`) or the FCM project ID.
+- `app`: the APNs topic of the token, the bundle ID with `.voip` for a PushKit VoIP token or the bundle ID for an
+  alert token, or the FCM project ID.
 - `environment`: APNs only, `production` (the default) or `sandbox`. Ignored for `fcm`.
 - `token`: the platform token, at most 4,096 characters.
 
 The gateway refuses an app or provider it does not push for with `wake.unsupported-app`, and otherwise answers
 `wake-accepted` with `handle`: an opaque string of at most 512 base64url characters that only it can read, standing
 for the provider, the app, the environment, the token and the wake key. How it makes one is its own choice (an AEAD
-of those values under a key of its own keeps it stateless). A new platform token means a new enrolment.
+of those values under a key of its own keeps it stateless). A new platform token means a new enrolment. An enrolment
+is one token: an iOS device enrols its VoIP token and its alert token apart, each under its own wake key, and has a
+handle for each (spec-gap 178).
 
 ```json
 {
@@ -159,7 +164,8 @@ The waker verifies the envelope as any message on the binding, then, in this ord
 4. the waker will use `gateway`: its own policy, which MAY admit any; otherwise `wake.gateway-unknown`.
 
 It answers `wake-accepted` and keeps one registration per device: the `wake-register` signer's device DID. A new one
-replaces it. No capability is needed beyond binding's (§13.2; M§4.3 for a mailbox). A mailbox treats `wake-register`
+replaces it. A device registers the handle whose push suits the waker's kinds: with a relay (`call`, `call-ended`) an
+iOS device's VoIP handle, with a mailbox (`message`) its alert handle (spec-gap 178). No capability is needed beyond binding's (§13.2; M§4.3 for a mailbox). A mailbox treats `wake-register`
 as an owner operation (M§4.1) before these checks: an identity it does not serve enrols by it, or is refused
 `mailbox.not-served` (spec-gap 176).
 
@@ -254,7 +260,7 @@ handed to the provider, never delivered: neither APNs nor FCM reports delivery. 
 | class | APNs | FCM |
 |---|---|---|
 | `call` | `apns-push-type: voip`, priority 10, topic the handle's `app` | `priority: high` data message |
-| `message` | `apns-push-type: alert` with `mutable-content: 1`, priority 10, topic the app's bundle ID | `priority: high` data message |
+| `message` | `apns-push-type: alert` with `mutable-content: 1`, priority 10, topic the handle's `app` | `priority: high` data message |
 
 The expiry is `deliver_by` (APNs `apns-expiration`, FCM `ttl`, at least 0). The data the app receives is, as compact
 JSON (APNs: a top-level key beside `aps`; FCM: one data field, `dsip-wake`, holding it as a string):
@@ -347,3 +353,4 @@ the device registers again on its next binding.
 | 174 | W§4.3 | `expires_at` (W-Registration), replacement, `remove`, gateway answers, revocation, retention |
 | 175 | W§3 | a per-enrolment wake key, not the device DID |
 | 176 | W§4.2 | at a mailbox, `wake-register` is an owner operation (M§4.1) |
+| 178 | W§3, W§4.2, W§5.3 | one APNs token per enrolment: an iOS device enrols its VoIP and alert tokens apart, registering each with the waker whose kinds it suits |

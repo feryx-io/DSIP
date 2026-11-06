@@ -17,6 +17,12 @@
         "app": "org.dsip.app.voip",
         "token": "7d1f7d1f7d1f7d1f7d1f7d1f7d1f7d1f7d1f7d1f7d1f7d1f7d1f7d1f7d1f7d1f"
       },
+      "h-apns-bob-phone-alert": {
+        "key": "did:key:z6Mkko2Nuhd1jFnZHPTiB4Ud9wP2p5neKYhPE242iW3GrGXM",
+        "provider": "apns",
+        "app": "org.dsip.app",
+        "token": "c0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0de"
+      },
       "h-fcm-bob-laptop-0001": {
         "key": "did:key:z6Mkqw4J1rwToKdie8H4rzNfhmgdqi2tkhbUwp98etMcbKhs",
         "provider": "fcm",

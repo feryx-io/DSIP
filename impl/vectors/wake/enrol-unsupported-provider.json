@@ -13,6 +13,10 @@
         "app": "org.dsip.app.voip"
       },
       {
+        "provider": "apns",
+        "app": "org.dsip.app"
+      },
+      {
         "provider": "fcm",
         "app": "dsip-app-prod"
       }
