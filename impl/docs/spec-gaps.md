@@ -5170,3 +5170,44 @@ Choices:
 `state/broadcast-authority-renewal-per-device`: two devices of one identity subscribe to one target, both are
 notified, and one's renewal and termination leave the other's in place (the Python harness matching per identity
 fails it). The Python harness, impl-ts and dsip-rs's authority match on the subscription's device.
+
+## 178. W§3, W§5.3 — a `message` wake to an iOS device has no token APNs will take
+
+**Found (2026-11-06, iOS PushKit in the app, dsip-app A5d-3).** W§2 says an iOS device holds "a PushKit VoIP token",
+W§3 enrols one token per enrolment with `app` "the APNs topic (the bundle ID with `.voip`)", and W§5.3 sends a
+`message`-class push as `apns-push-type: alert` with `mutable-content: 1` on "the app's bundle ID" topic to the
+**same** token (dsip-push strips `.voip` from `app`). APNs refuses that: a PushKit VoIP token is issued for the `.voip`
+topic only. An alert push needs the separate device token from `registerForRemoteNotifications`, and APNs answers a
+VoIP token on the bundle topic with 400 `DeviceTokenNotForTopic`. So no iOS device can get a `message` wake as the
+draft stands. Android is not affected, because FCM has one token for both classes.
+
+A `message` cannot move to PushKit. Apple ends VoIP delivery to an app that does not report a call to CallKit for
+every VoIP push.
+
+Choices:
+
+- **(a) Two enrolments per iOS device.** One token per enrolment (W§3 unchanged): the VoIP token enrolled with
+  `app` `<bundle>.voip`, the alert token enrolled with `app` `<bundle>`. Each gives its own handle and registration.
+  The device registers the `.voip` one with relays (`call`, `call-ended`) and the bundle one with mailboxes
+  (`message`). W§5.3's `message` row then uses the handle's `app` as its topic, not one derived from it. Nothing new on
+  the wire. The cost is two enrolments and two refreshes for one iOS device.
+- **(b) Two tokens in one enrolment.** `wake-enrol` gains an optional `message_token` (APNs only). The handle stands
+  for both, and the gateway picks one by class. One registration serves both wakers. This is a schema change, and
+  the handle grows.
+- **(c) Calls only on iOS.** iOS devices get no `message` wakes. The mailbox is fetched on open, or on the user's own
+  background refresh. W§5.3's `message` row becomes FCM only. This is simplest, and it drops iOS message wakes.
+
+**Decided (2026-11-06, user: "(a) for gap 178"): (a).** It keeps one token per handle, which every other rule
+assumes (a registration ending on APNs 410, W§5.3's `wake.registration-ended`). In place in the draft:
+
+- W§2: an iOS device holds two tokens.
+- W§3: `app` is the topic of the token, the `.voip` topic or the bundle ID. An enrolment is one token, each under its
+  own wake key.
+- W§4.2: the VoIP handle is registered with relays, the alert handle with mailboxes.
+- W§5.3: the `message` row's topic is the handle's `app`.
+
+Vectors: `wake/enrol-apns-alert-token` (a gateway pushing for both topics accepts the alert token's enrolment) and
+`wake/gateway-message-apns-alert-token` (a mailbox's `message` wake is forwarded on the alert handle, its `app` as
+given). Python, impl-ts and dsip-rs at c31b392 already agree: the gateway check forwards the handle's `app`
+unchanged. dsip-rs's `dsip-push` APNs adapter derived the message topic by stripping `.voip`; it now takes the
+handle's `app`. The iOS app's alert token and notification service extension follow in dsip-app.

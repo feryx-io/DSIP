@@ -1,4 +1,4 @@
-"""`wake/` vectors — Wake Profile draft (W§3–W§6; spec-gaps 169–175). Expectations are written out by hand."""
+"""`wake/` vectors — Wake Profile draft (W§3–W§6; spec-gaps 169–176, 178). Expectations are written out by hand."""
 from __future__ import annotations
 
 import copy
@@ -20,8 +20,10 @@ CALLER = F.did("alice-phone")
 
 WK = keypair_from_seed_name("wake-key-bob-phone")       # the phone's wake key (W§3)
 WK2 = keypair_from_seed_name("wake-key-bob-laptop")
+WK3 = keypair_from_seed_name("wake-key-bob-phone-alert")  # the phone's alert token, its own enrolment (spec-gap 178)
 HANDLE, HANDLE2 = "h-apns-bob-phone-0001", "h-fcm-bob-laptop-0001"
 APNS_TOKEN = "7d1f" * 16
+APNS_ALERT_TOKEN = "c0de" * 16
 FCM_TOKEN = "fcm:APA91bH-bob-laptop-" + "x" * 120
 SEAL_SECRET = bytes(range(1, 33))                         # the device's X25519 secret for hints (W§6)
 SEAL_KEY = b64url_encode(x25519_public(SEAL_SECRET))
@@ -141,7 +143,9 @@ def schema_vectors() -> list[dict]:
 
 # ---------------------------------------------------------------- enrolment at the gateway
 
-APPS = [{"provider": "apns", "app": "org.dsip.app.voip"}, {"provider": "fcm", "app": "dsip-app-prod"}]
+# An iOS app's two APNs topics: PushKit's VoIP token for calls, the alert token for messages (spec-gap 178).
+APPS = [{"provider": "apns", "app": "org.dsip.app.voip"}, {"provider": "apns", "app": "org.dsip.app"},
+        {"provider": "fcm", "app": "dsip-app-prod"}]
 
 
 def enrol_vectors() -> list[dict]:
@@ -158,6 +162,11 @@ def enrol_vectors() -> list[dict]:
     ev("apns-sandbox", "An APNs enrolment for the sandbox.", {**apns, "environment": "sandbox"},
        acc(enrolment={"key": WK.did, "provider": "apns", "app": "org.dsip.app.voip", "token": APNS_TOKEN,
                       "environment": "sandbox"}))
+    ev("apns-alert-token", "An iOS device's alert token is enrolled on its own, on the bundle ID's topic (spec-gap 178).",
+       {**msg("wake-enrol", "enrol-apns-alert", WK3.did, GW, provider="apns", app="org.dsip.app",
+              token=APNS_ALERT_TOKEN)},
+       acc(enrolment={"key": WK3.did, "provider": "apns", "app": "org.dsip.app", "token": APNS_ALERT_TOKEN,
+                      "environment": "production"}))
     fcm = msg("wake-enrol", "enrol-fcm", WK2.did, GW, provider="fcm", app="dsip-app-prod", token=FCM_TOKEN,
               environment="sandbox")
     ev("fcm-ignores-environment", "`environment` is APNs only: an FCM enrolment ignores it.", fcm,
@@ -257,6 +266,7 @@ def register_vectors() -> list[dict]:
 
 HANDLES = {
     HANDLE: {"key": WK.did, "provider": "apns", "app": "org.dsip.app.voip", "token": APNS_TOKEN},
+    "h-apns-bob-phone-alert": {"key": WK3.did, "provider": "apns", "app": "org.dsip.app", "token": APNS_ALERT_TOKEN},
     HANDLE2: {"key": WK2.did, "provider": "fcm", "app": "dsip-app-prod", "token": FCM_TOKEN},
     "h-apns-bob-tablet-sandbox": {"key": WK.did, "provider": "apns", "app": "org.dsip.app.voip", "token": "ab" * 32,
                                   "environment": "sandbox"},
@@ -300,6 +310,13 @@ def gateway_vectors() -> list[dict]:
             kind="message", deliver_by=NOW + 60)
     gv("message-fcm", "A message wake through FCM: the message class, no environment.", m,
        fwd("message", {"kind": "message", "waker": MAILBOX}, HANDLE2, NOW + 60), MAILBOX)
+    ma = msg("wake", "gw-msg-apns", MAILBOX, GW,
+             registration=registration(key=WK3, signer=WK3, waker=MAILBOX, handle="h-apns-bob-phone-alert"), kind="message",
+             deliver_by=NOW + 60)
+    gv("message-apns-alert-token", "A message wake to an iOS device goes to the handle of its alert token, the "
+       "handle's `app` as given (spec-gap 178).", ma,
+       fwd("message", {"kind": "message", "waker": MAILBOX}, "h-apns-bob-phone-alert", NOW + 60), MAILBOX,
+       ["W§3", "W§5.3"])
     gv("unknown-kind-is-message", "An unknown kind is forwarded as raw, in the message class (W§8.2 fallback).",
        {**m, "kind": "typing"}, fwd("message", {"kind": "typing", "waker": MAILBOX}, HANDLE2, NOW + 60), MAILBOX,
        ["W§5.3", "W§8.2"])

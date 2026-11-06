@@ -1,0 +1,86 @@
+{
+  "vector": "wake/gateway-message-apns-alert-token",
+  "format": 1,
+  "kind": "wake",
+  "description": "A message wake to an iOS device goes to the handle of its alert token, the handle's `app` as given (spec-gap 178).",
+  "spec_ref": [
+    "W§3",
+    "W§5.3"
+  ],
+  "context": {
+    "gateway": "did:web:push.dsip.example",
+    "now": 1760000000,
+    "handles": {
+      "h-apns-bob-phone-0001": {
+        "key": "did:key:z6MkmKLy2152iTZStcAyu2FjSRHFjN3V58uqgeN1iVrpC8Vo",
+        "provider": "apns",
+        "app": "org.dsip.app.voip",
+        "token": "7d1f7d1f7d1f7d1f7d1f7d1f7d1f7d1f7d1f7d1f7d1f7d1f7d1f7d1f7d1f7d1f"
+      },
+      "h-apns-bob-phone-alert": {
+        "key": "did:key:z6Mkko2Nuhd1jFnZHPTiB4Ud9wP2p5neKYhPE242iW3GrGXM",
+        "provider": "apns",
+        "app": "org.dsip.app",
+        "token": "c0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0de"
+      },
+      "h-fcm-bob-laptop-0001": {
+        "key": "did:key:z6Mkqw4J1rwToKdie8H4rzNfhmgdqi2tkhbUwp98etMcbKhs",
+        "provider": "fcm",
+        "app": "dsip-app-prod",
+        "token": "fcm:APA91bH-bob-laptop-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "h-apns-bob-tablet-sandbox": {
+        "key": "did:key:z6MkmKLy2152iTZStcAyu2FjSRHFjN3V58uqgeN1iVrpC8Vo",
+        "provider": "apns",
+        "app": "org.dsip.app.voip",
+        "token": "abababababababababababababababababababababababababababababababab",
+        "environment": "sandbox"
+      }
+    }
+  },
+  "input": {
+    "check": "gateway",
+    "wake": {
+      "dsip": {
+        "core": "1.0",
+        "min_core": "1.0",
+        "profiles": [
+          "wake/0.1"
+        ],
+        "extensions": [],
+        "critical": []
+      },
+      "type": "wake",
+      "id": "01K742SG00W4FK6KARXQANEFAP",
+      "from": "did:web:mbx.example.com",
+      "to": "did:web:push.dsip.example",
+      "registration": {
+        "protected": "eyJhbGciOiJFZERTQSIsImtpZCI6ImRpZDprZXk6ejZNa2tvMk51aGQxakZuWkhQVGlCNFVkOXdQMnA1bmVLWWhQRTI0MmlXM0dyR1hNI3o2TWtrbzJOdWhkMWpGblpIUFRpQjRVZDl3UDJwNW5lS1loUEUyNDJpVzNHckdYTSIsInR5cCI6ImRzaXAranNvbiJ9",
+        "payload": "eyJ0eXBlIjoiV2FrZVJlZ2lzdHJhdGlvbiIsImtleSI6ImRpZDprZXk6ejZNa2tvMk51aGQxakZuWkhQVGlCNFVkOXdQMnA1bmVLWWhQRTI0MmlXM0dyR1hNIiwid2FrZXIiOiJkaWQ6d2ViOm1ieC5leGFtcGxlLmNvbSIsImdhdGV3YXkiOiJkaWQ6d2ViOnB1c2guZHNpcC5leGFtcGxlIiwiaGFuZGxlIjoiaC1hcG5zLWJvYi1waG9uZS1hbGVydCIsImlzc3VlZF9hdCI6MTc1OTk5OTk0MCwiZXhwaXJlc19hdCI6MTc2MjU5MTk0MH0",
+        "signature": "2XFUos611jBCpci8xX8U2qrZh5o9cRhK9rpb1dsiPR2174JfZyjpJVrg3vM99ZEDOSaouj0TjLv8YvsBDN1sDw"
+      },
+      "kind": "message",
+      "deliver_by": 1760000060,
+      "issued_at": 1760000000,
+      "expires_at": 1760000030
+    },
+    "signer": "did:web:mbx.example.com"
+  },
+  "expect": {
+    "verdict": "accept",
+    "forward": {
+      "provider": "apns",
+      "app": "org.dsip.app",
+      "token": "c0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0de",
+      "class": "message",
+      "deliver_by": 1760000060,
+      "data": {
+        "dsip-wake": {
+          "kind": "message",
+          "waker": "did:web:mbx.example.com"
+        }
+      },
+      "environment": "production"
+    }
+  }
+}

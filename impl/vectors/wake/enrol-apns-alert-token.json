@@ -1,0 +1,58 @@
+{
+  "vector": "wake/enrol-apns-alert-token",
+  "format": 1,
+  "kind": "wake",
+  "description": "An iOS device's alert token is enrolled on its own, on the bundle ID's topic (spec-gap 178).",
+  "spec_ref": [
+    "W§3"
+  ],
+  "context": {
+    "apps": [
+      {
+        "provider": "apns",
+        "app": "org.dsip.app.voip"
+      },
+      {
+        "provider": "apns",
+        "app": "org.dsip.app"
+      },
+      {
+        "provider": "fcm",
+        "app": "dsip-app-prod"
+      }
+    ]
+  },
+  "input": {
+    "check": "enrol",
+    "enrol": {
+      "dsip": {
+        "core": "1.0",
+        "min_core": "1.0",
+        "profiles": [
+          "wake/0.1"
+        ],
+        "extensions": [],
+        "critical": []
+      },
+      "type": "wake-enrol",
+      "id": "01K742SG00FB6NXGV9EVQ9AGJR",
+      "from": "did:key:z6Mkko2Nuhd1jFnZHPTiB4Ud9wP2p5neKYhPE242iW3GrGXM",
+      "to": "did:web:push.dsip.example",
+      "provider": "apns",
+      "app": "org.dsip.app",
+      "token": "c0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0de",
+      "issued_at": 1760000000,
+      "expires_at": 1760000030
+    }
+  },
+  "expect": {
+    "verdict": "accept",
+    "enrolment": {
+      "key": "did:key:z6Mkko2Nuhd1jFnZHPTiB4Ud9wP2p5neKYhPE242iW3GrGXM",
+      "provider": "apns",
+      "app": "org.dsip.app",
+      "token": "c0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0de",
+      "environment": "production"
+    }
+  }
+}
