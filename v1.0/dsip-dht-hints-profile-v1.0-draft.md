@@ -39,6 +39,9 @@ A hint is a DSIP-JOSE envelope (§10.2) whose payload is:
   `DSIPSignaling` when absent, `DSIPMailbox` for a Messaging Profile mailbox (which then carries that
   service entry's fields, M§4.2). Hints serve only identities with no document entry of that type,
   and never override one (§8.1).
+- `key_agreement` (optional, 1.x, spec-gap 179): the subject's current key agreement delegation (core §7.3), an
+  envelope object (`{protected, payload, signature}`, §10.2) as the `delegations` header carries delegations. Publishers whose identity has one SHOULD carry it, so that senders find the key they seal to where they
+  find the subject's devices.
 - `seq` MUST be strictly increasing per subject across publications. Using `issued_at` as `seq`
   satisfies this for a single publisher clock; multi-device publishers SHOULD coordinate or
   accept that the latest clock wins.
@@ -69,7 +72,9 @@ Schema: `reachability-hint.schema.json` in the v0.8 spec schema set.
 Before a node stores, forwards, or returns a record it MUST:
 
 1. Verify the envelope (§10.2 pipeline) and that `from == subject == verified identity`.
-2. Validate the payload against the hint schema.
+2. Validate the payload against the hint schema. A `key_agreement` member must verify as a key agreement delegation
+   (core §7.3) whose `subject` is the hint's `subject`; a hint whose member does not is refused as a whole
+   (`key-agreement-invalid`), as its publisher signed it.
 3. Apply §8.3 against any live record it holds for the key:
    higher `seq` replaces; lower `seq` is discarded; identical content is a no-op; same `seq` with
    different content is a conflict — keep the held record, surface a warning.

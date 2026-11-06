@@ -438,6 +438,10 @@ schemas["reachability-hint"] = base(
             },
         },
         "seq": {"type": "integer", "minimum": 0},
+        "key_agreement": {"type": "object",
+                          "properties": {k: {"type": "string"} for k in ("protected", "payload", "signature")},
+                          "required": ["protected", "payload", "signature"], "additionalProperties": False,
+                          "description": "1.x, spec-gap 179: the subject's current key agreement delegation (spec 7.3), an envelope object as the delegations header carries them; verified against the subject, and a hint whose member does not verify is refused."},
     },
     extra_required=["subject", "endpoints", "seq"],
 )
@@ -716,6 +720,29 @@ dispatcher = {
     ],
 }
 
+# ---------------------------------------------------------------- credential payloads
+# Not message types: the payloads of credentials carried as compact envelopes (spec 7.3).
+
+credentials = {
+    "key-agreement-delegation": {
+        "$schema": SCHEMA_DIALECT,
+        "$id": f"{NS}key-agreement-delegation.schema.json",
+        "title": "DSIP KeyAgreementDelegation credential payload",
+        "description": "1.x, spec-gap 179 (spec 7.3): an independent X25519 key agreement key named by the identity, signed directly by a verification key of the subject. key is multibase base58btc of multicodec x25519-pub (0xec 0x01) and the 32-byte key, as did:key encodes it. The lifetime cap (issued_at < expires_at <= issued_at + 31,536,000) and the signer are semantic checks.",
+        "type": "object",
+        "properties": {
+            "type": {"const": "KeyAgreementDelegation"},
+            "subject": {"$ref": "#/$defs/did"},
+            "key": {"type": "string", "pattern": "^z6LS[1-9A-HJ-NP-Za-km-z]{44}$"},
+            "issued_at": {"$ref": "#/$defs/timestamp"},
+            "expires_at": {"$ref": "#/$defs/timestamp"},
+        },
+        "required": ["type", "subject", "key", "issued_at", "expires_at"],
+        "additionalProperties": False,
+        "$defs": {k: COMMON_DEFS[k] for k in ("did", "timestamp")},
+    },
+}
+
 # ---------------------------------------------------------------- write
 
 def main(outdir):
@@ -725,9 +752,9 @@ def main(outdir):
         (out / f"{name}.schema.json").write_text(json.dumps(schema, indent=2) + "\n")
     (out / "envelope.schema.json").write_text(json.dumps(envelope, indent=2) + "\n")
     (out / "message.schema.json").write_text(json.dumps(dispatcher, indent=2) + "\n")
-    for name, schema in bindings.items():
+    for name, schema in {**bindings, **credentials}.items():
         (out / f"{name}.schema.json").write_text(json.dumps(schema, indent=2) + "\n")
-    print(f"wrote {len(schemas) + 2 + len(bindings)} schemas to {out}")
+    print(f"wrote {len(schemas) + 2 + len(bindings) + len(credentials)} schemas to {out}")
 
 if __name__ == "__main__":
     main(sys.argv[1] if len(sys.argv) > 1 else "schemas")

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dsip.org/schema/1.0/key-agreement-delegation.schema.json",
+  "title": "DSIP KeyAgreementDelegation credential payload",
+  "description": "1.x, spec-gap 179 (spec 7.3): an independent X25519 key agreement key named by the identity, signed directly by a verification key of the subject. key is multibase base58btc of multicodec x25519-pub (0xec 0x01) and the 32-byte key, as did:key encodes it. The lifetime cap (issued_at < expires_at <= issued_at + 31,536,000) and the signer are semantic checks.",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "KeyAgreementDelegation"
+    },
+    "subject": {
+      "$ref": "#/$defs/did"
+    },
+    "key": {
+      "type": "string",
+      "pattern": "^z6LS[1-9A-HJ-NP-Za-km-z]{44}$"
+    },
+    "issued_at": {
+      "$ref": "#/$defs/timestamp"
+    },
+    "expires_at": {
+      "$ref": "#/$defs/timestamp"
+    }
+  },
+  "required": [
+    "type",
+    "subject",
+    "key",
+    "issued_at",
+    "expires_at"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "did": {
+      "type": "string",
+      "pattern": "^did:[a-z0-9]+:[A-Za-z0-9.%_:-]+$",
+      "description": "Decentralized Identifier (DID Core syntax, method-specific validation out of scope here)."
+    },
+    "timestamp": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Integer Unix timestamp, seconds (payload rules, spec 11.3: no floating point)."
+    }
+  }
+}

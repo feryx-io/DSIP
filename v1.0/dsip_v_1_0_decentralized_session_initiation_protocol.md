@@ -336,6 +336,42 @@ DSIP separates:
 
 A user should be able to use multiple devices without sharing one private key across all devices.
 
+**Key agreement delegation (1.x, spec-gap 179).** What is sealed to an identity (sealed introductions §19.4, sealed
+bodies §10.4, sealed presence P§12) is sealed to its X25519 key agreement key. For a `did:key` identity with no other,
+that key is the one the method derives from the Ed25519 key, and its private half (the first 32 bytes of SHA-512 of the
+Ed25519 seed) is Ed25519's own secret scalar: a holder of it can sign as the identity. A device that opens what is
+sealed to such an identity therefore holds the identity key in effect. To separate the two, an identity MAY sign a
+**key agreement delegation** naming an independent X25519 key:
+
+```json
+{
+  "type": "KeyAgreementDelegation",
+  "subject": "did:key:z6MkUser",
+  "key": "z6LSbysY2xFMRpGMhb7tFTLMpeuPRaqaWM1yECx2AtzE3KCc",
+  "issued_at": 1760000000,
+  "expires_at": 1791536000
+}
+```
+
+- It is carried as a DSIP-JOSE envelope (§10.2) whose payload is that object, signed **directly by a verification key
+  of the subject**, never by a device, as a delegation is (§7.4). `key` is the X25519 public key as `did:key`
+  encodes one: multibase base58btc (`z`) of the multicodec `x25519-pub` (0xec 0x01) followed by the 32 bytes.
+- It verifies when the signature does, the payload is that object (schema `key-agreement-delegation`),
+  `issued_at < expires_at ≤ issued_at + 31,536,000`, `issued_at ≤ now + 300` and `now < expires_at`. It is a
+  credential: its source does not matter, only its signature and subject. A verifier holds the verified ones it is
+  given.
+- The identity's devices hold the private half; how they receive it is the identity's own matter, as for the
+  controller key (M§6.9). A device holding only it, its device key and its delegation can open everything sealed to
+  the identity and sign nothing as the identity.
+- A newer one replaces an older one: of the verified delegations a verifier holds for a subject, the one with the
+  greatest `issued_at` is current, ties going to the smaller `key` (compared as strings). An identity that loses the
+  private half issues a new one; until senders hold it, they seal to the old.
+- It is carried in the subject's reachability hint (DHT Hints Profile §2) and MAY be presented anywhere else a
+  credential can be.
+- The **key agreement key** of a DID is, in this order (§8.1): its DID document's `keyAgreement` method; else its
+  current verified key agreement delegation; else, for `did:key`, the derived key. A key agreement delegation is
+  ignored for a DID whose document names a `keyAgreement` method.
+
 ### 7.4 Device Delegation
 
 A DID document or credential should be able to state:
@@ -751,7 +787,7 @@ Message `id` values are **ULIDs** (26-character Crockford base32). ULIDs are tim
 
 1. The plaintext is a UTF-8 JSON object holding only sealed fields of that type, obeying §10.3, followed by ASCII spaces (0x20) so that its length is a positive multiple of 256 bytes. JSON permits trailing whitespace, so the padded text parses unchanged; the padding hides how many candidates or codecs an SDP carries.
 2. `alg` is `hpke-base-x25519-sha256-aes128gcm`: HPKE (RFC 9180) base mode, DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, AES-128-GCM — the suite of sealed introductions (§19.4; M§14.1).
-3. The recipient key is the X25519 key agreement key of the DID in `to`: its DID document's `keyAgreement` method (§7.2), or for `did:key` the X25519 key the method derives from its Ed25519 key (M§6.9). `to` names an identity on an `invite` (every device acting for it holds the identity's key agreement key) and may name a device on a response (a device `did:key`, whose key only that device holds). It is resolved under the authority order of §8.1 and is never taken from a hint.
+3. The recipient key is the X25519 key agreement key of the DID in `to` (§7.3): its DID document's `keyAgreement` method (§7.2); else its current verified key agreement delegation (1.x, spec-gap 179); else, for `did:key`, the X25519 key the method derives from its Ed25519 key (M§6.9). `to` names an identity on an `invite` (every device acting for it holds the identity's key agreement key) and may name a device on a response (a device `did:key`, whose key only that device holds). It is resolved under the authority order of §8.1 and is never taken from a hint; a key agreement delegation a hint carries is the subject's own signed credential, verified against the subject whatever carried it, not hint data.
 4. HPKE `info` is `dsip sealed body v1`; the AAD is `type ‖ 0x00 ‖ id ‖ 0x00 ‖ from ‖ 0x00 ‖ to` (UTF-8), so a ciphertext cannot be moved into another message.
 5. The payload lists `sealed-body/1.0` in both `dsip.extensions` and `dsip.critical`. The envelope is then signed as usual (§10.2): the signature covers the ciphertext, so relays still verify every envelope and apply the replay window.
 
@@ -2738,6 +2774,13 @@ or rejects.
 - §9.3: a renewal, and `expires_in: 0`, match the subscribing device's subscription; two devices of one identity
   hold one each (spec-gap 177). Nothing on the wire changes; an authority that matched per identity replaced one
   device's subscription with another's.
+- §7.3: a `did:key` identity's derived key agreement secret is its Ed25519 signing scalar, stated; and a **key
+  agreement delegation**, an identity-signed `KeyAgreementDelegation` credential naming an independent X25519 key, so
+  that devices open what is sealed to the identity without holding its signing key (spec-gap 179). The recipient key
+  of §10.4, §19.4, M§6.9 and P§12 is then the document's `keyAgreement`, else the current delegation, else the derived
+  key; the DHT Hints Profile's hint carries the delegation (`key_agreement`). A sender that does not implement it
+  seals to the derived key as before, which only devices holding the identity key open; no 1.0 message changes.
+  `key-agreement/` vectors.
 
 ---
 

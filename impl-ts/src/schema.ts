@@ -15,8 +15,8 @@ import type { Json } from "./did.js";
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const CORE_SCHEMAS = join(REPO, "v1.0", "dsip-schemas-v1.0", "dsip-schemas", "schemas");
 
-/** Schema files that are not message types. */
-const NOT_MESSAGES = new Set(["envelope", "message", "webrtc-info-data", "dtmf-info-data"]);
+/** Schema files that are not message types (`key-agreement-delegation` is a credential, §7.3). */
+const NOT_MESSAGES = new Set(["envelope", "message", "webrtc-info-data", "dtmf-info-data", "key-agreement-delegation"]);
 
 /** `info.about` → the binding schema its `data` must satisfy. Spec: §12.12 */
 const INFO_BINDINGS: Record<string, string> = {

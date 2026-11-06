@@ -18,6 +18,7 @@ import { runRecording } from "./recording/recording.js";
 import { runPresence } from "./presence/presence.js";
 import { runSealedPresence } from "./presence/sealed.js";
 import { runWake } from "./wake/wake.js";
+import { runKeyAgreement } from "./key-agreement.js";
 import { Endpoint, type EndpointContext } from "./endpoint.js";
 import type { Json, JsonObject } from "./did.js";
 import { verifyEnvelope, type ReceiverContext } from "./envelope.js";
@@ -71,6 +72,7 @@ const RUNNERS: Record<string, (v: Vector) => Json | undefined> = {
   recording: (v) => runRecording(v.context ?? {}, v.input),
   presence: (v) => runPresence(v.context ?? {}, v.input) ?? runSealedPresence(v.context ?? {}, v.input),
   wake: (v) => runWake(v.context ?? {}, v.input),
+  "key-agreement": (v) => runKeyAgreement(v.context ?? {}, v.input, schemas),
   "alias-transparency": (v) => runAliasTransparency(v.input),
   pkarr: (v) => runPkarr(v.input),
   "tn-binding": (v) => runTnBinding(v.context as unknown as TnContext, v.input),

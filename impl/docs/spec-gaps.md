@@ -5211,3 +5211,58 @@ Vectors: `wake/enrol-apns-alert-token` (a gateway pushing for both topics accept
 given). Python, impl-ts and dsip-rs at c31b392 already agree: the gateway check forwards the handle's `app`
 unchanged. dsip-rs's `dsip-push` APNs adapter derived the message topic by stripping `.voip`; it now takes the
 handle's `app`. The iOS app's alert token and notification service extension follow in dsip-app.
+
+## 179. §7.3, §19.4, M§6.9, P§12 — a `did:key` identity's key agreement secret is its signing key
+
+**Found (2026-11-06, dsip-app A6c, adding a second device).** Sealed introductions (§19.4, M§6.9), sealed bodies
+(§10.4) and sealed presence (P§12) are sealed to the identity's X25519 key agreement key. "Every device acting for an
+identity holds that identity's key agreement private key" (§10.4). For `did:key` that key is the one the method
+derives from the Ed25519 key. Its private half is the first 32 bytes of SHA-512 of the Ed25519 seed, clamped. That is
+exactly Ed25519's secret scalar, and that scalar is all an Ed25519 signer needs: a verifier never checks how the
+nonce was made. So a device that can open what is sealed to a `did:key` identity can also sign as that identity:
+delegations, revocations (§7.4, §7.5), grants. Nothing in the spec says so.
+
+Decision 5 (a) of the app plan, the identity key on one device and later devices holding only device keys and
+delegations, is therefore impossible for a `did:key` identity whose later devices take first contact or follow
+sealed presence. §7.3's separation of identity and device keys holds for signing only. M§6.9 lets a `did:web`
+identity publish an independent X25519 key (spec-gap 55). A `did:key` identity has no document to publish one in.
+
+Choices:
+
+- **(a) A key agreement delegation.** The identity signs a credential naming an independent X25519 public key:
+  `{"type": "KeyAgreementDelegation", "subject": "<identity>", "key": "<multibase X25519>", "issued_at", "expires_at"}`,
+  in the delegation's envelope form. Its private half goes to every device acting for the identity, and no device
+  then needs the identity key to open anything.
+  - A sender seals to it in place of the derived key when it holds a verified one for the recipient. It finds one
+    where it finds the recipient's devices: in the recipient's signed reachability hint (a new optional member,
+    verified against the identity like the hint's delegation, §8.3), and in a grant (P§12).
+  - With none, the sender seals to the derived key as now, and only devices holding the identity key open it.
+  - A `did:web` identity's document `keyAgreement` stays authoritative (§8.1). The credential is for `did:key`
+    identities, and is ignored for an identity whose document names one.
+  - Rotation: a new credential replaces the old one, as a key-rotation does (§7.5).
+  - Costs: a credential type, a hint member, sender logic, and vectors. It is a 1.x addition (§11.4).
+- **(b) State it, and leave the arrangement.** §7.3 and M§6.9 say that for `did:key` the key agreement secret is
+  the signing key. A `did:key` identity's every device that opens sealed content holds the identity key in effect,
+  and separation needs `did:web` with an independent `keyAgreement` key. No wire change. The app's decision 5 (a)
+  then holds only for `did:web`.
+- **(c) Seal to devices.** The sender seals once per device of the recipient, using device keys from the hints, so
+  no shared secret exists. Devices the sender does not see (no hint, or hints withheld) never get it. Each sealed
+  item grows with the device count, and an introduction to a newly added device is lost. Spec-gap 55 (b) rejected
+  this for introductions.
+
+**Decided (2026-11-06, user: "(a) KA delegation"): (a), with (b)'s statement.** In place:
+
+- **Core §7.3:** the derived secret is the signing scalar, stated. The `KeyAgreementDelegation` credential: its form,
+  its verification, which delegation is current, and the key agreement key of a DID (document, else delegation, else
+  derived).
+- **§10.4 rule 3:** the recipient key in that order. A delegation a hint carries is the subject's own credential, not
+  hint data.
+- **M§6.9 and P§12.1:** the delegation's key. A new key is a rotation (P§12.5).
+- **DHT Hints Profile:** the optional `key_agreement` member, and the hint refused when it does not verify.
+- **Schemas:** `key-agreement-delegation` in the core set; the hint's member.
+- **A.16:** a line.
+
+Vectors: `key-agreement/` (credential verification in order `credential-invalid` → `schema-invalid` →
+`not-subject-signed` → `subject-mismatch` → `validity-invalid` → `not-yet-valid` → `expired`; the recipient key) and
+`dht/key-agreement-*` (`key-agreement-invalid`). Carrying the delegation in an introduction or a grant is left for
+when a sender needs it beyond hints.
