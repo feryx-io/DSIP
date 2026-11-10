@@ -152,7 +152,7 @@ DSIP is a complete, tested draft looking for reviewers and independent implement
 | Implementation | Language | How it was written |
 | --- | --- | --- |
 | Reference harness | Python | Alongside the vectors |
-| Reference implementation ([dsip-rs](https://github.com/thevoiceguy/dsip-rs)) | Rust | From the spec; runs real calls, messaging, a gateway and DHT nodes over the internet |
+| Reference implementation ([dsip-rs](https://github.com/feryx-io/dsip-rs)) | Rust | From the spec; runs real calls, messaging, a gateway and DHT nodes over the internet |
 | Second implementation | TypeScript | From the spec, the schemas and the vectors README only, without reading the other two |
 
 A differential fuzzer also drives random message sequences through all three and compares what they do. Every disagreement it finds becomes a hand-written vector or a recorded spec decision; 132 such decisions are on record.

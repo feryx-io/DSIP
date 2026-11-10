@@ -6,7 +6,7 @@ their tags (`poc-v0.6` … `poc-v0.17`). Companion profiles: Gateway 1.0, Messag
 `docs/spec-gaps.md`.
 
 The Rust implementation grew here as `impl/crates` and moved, with its history, to
-**[dsip-rs](https://github.com/thevoiceguy/dsip-rs)** (2026-10-29, first release `v2026.10.29`): the crates, the
+**[dsip-rs](https://github.com/feryx-io/dsip-rs)** (2026-10-29, first release `v2026.10.29`): the crates, the
 workspace, the demos and the browser client. dsip-rs takes this repository as its `spec/` submodule. DSIP measures it
 at the commit pinned in `dsip-rs.rev`, against the vectors here, in three-way parity with the Python harness and
 `../impl-ts`.

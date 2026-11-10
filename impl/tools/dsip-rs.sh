@@ -7,7 +7,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 REV=${1:-$(cat impl/dsip-rs.rev)}
 DIR=${DSIP_RS:-dsip-rs}
-URL=${DSIP_RS_URL:-https://github.com/thevoiceguy/dsip-rs.git}
+URL=${DSIP_RS_URL:-https://github.com/feryx-io/dsip-rs.git}
 [ -d "$DIR/.git" ] || git clone -q --no-checkout "$URL" "$DIR"
 git -C "$DIR" cat-file -e "$REV^{commit}" 2>/dev/null || git -C "$DIR" fetch -q origin
 git -C "$DIR" checkout -q --detach "$REV"

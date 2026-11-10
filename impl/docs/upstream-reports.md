@@ -15,7 +15,7 @@ against the current texts, and again on 2026-10-09 (every report below still sta
 - RFC 5848: no errata on file.
 
 Findings already fixed upstream are listed at the end and are **not** to be sent. Each report links to a vector in
-`https://github.com/thevoiceguy/DSIP/tree/main/impl/vectors`, so it can be reproduced.
+`https://github.com/feryx-io/DSIP/tree/main/impl/vectors`, so it can be reproduced.
 
 ---
 
