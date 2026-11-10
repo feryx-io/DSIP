@@ -87,7 +87,7 @@ else
   fi
   source "$HOME/.cargo/env"
   # the Rust implementation lives in dsip-rs; its spec/ submodule (DSIP at a tag) holds the schemas it embeds
-  if [ -d $SRC/.git ]; then git -C $SRC fetch -q --tags origin; else git clone -q https://github.com/thevoiceguy/dsip-rs.git $SRC; fi
+  if [ -d $SRC/.git ]; then git -C $SRC fetch -q --tags origin; else git clone -q https://github.com/feryx-io/dsip-rs.git $SRC; fi
   git -C $SRC checkout -q "$DSIP_RS_REF"
   # a branch follows its remote; a tag or a commit stays where it is
   if git -C $SRC symbolic-ref -q HEAD >/dev/null; then git -C $SRC merge -q --ff-only "origin/$DSIP_RS_REF"; fi

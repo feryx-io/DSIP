@@ -10,7 +10,7 @@ implementation** (`impl-ts/`, TypeScript) written from the spec and the vectors
 alone, which passes the whole suite.
 
 The **Rust reference implementation** grew here as `impl/crates` and moved, with
-its history, to **dsip-rs** (github.com/thevoiceguy/dsip-rs, 2026-10-29): the
+its history, to **dsip-rs** (github.com/feryx-io/dsip-rs, 2026-10-29): the
 crates, the workspace, the demos and the browser client. dsip-rs takes DSIP as
 its `spec/` submodule. DSIP's CI measures dsip-rs at the commit pinned in
 `impl/dsip-rs.rev`, checked out into `dsip-rs/` by `impl/tools/dsip-rs.sh` and

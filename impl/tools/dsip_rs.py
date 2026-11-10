@@ -1,6 +1,6 @@
 """Where the Rust implementation is: a dsip-rs checkout, built against this repository's spec and vectors.
 
-dsip-rs (github.com/thevoiceguy/dsip-rs) holds the Rust crates; DSIP measures them at the commit pinned in
+dsip-rs (github.com/feryx-io/dsip-rs) holds the Rust crates; DSIP measures them at the commit pinned in
 `impl/dsip-rs.rev`. `impl/tools/dsip-rs.sh` checks that commit out into `dsip-rs/` at the repository root, or into
 `DSIP_RS` if set. The crates normally take the spec from their `spec/` submodule; `env()` points them at this
 checkout instead (`DSIP_SPEC`, `DSIP_VECTORS`), so a vector or schema change here is what they are measured on.
