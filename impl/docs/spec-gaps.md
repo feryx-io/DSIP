@@ -5266,3 +5266,56 @@ Vectors: `key-agreement/` (credential verification in order `credential-invalid`
 `not-subject-signed` → `subject-mismatch` → `validity-invalid` → `not-yet-valid` → `expired`; the recipient key) and
 `dht/key-agreement-*` (`key-agreement-invalid`). Carrying the delegation in an introduction or a grant is left for
 when a sender needs it beyond hints.
+
+## 180. M§5.4, §13.2 — an `items` page too large for the cap: nothing tests it, and a device cannot recover
+
+**Found (2026-11-11, dsip-app on Android).** The phone showed "Not connected to your mailbox" once a second. Its
+mailbox (dsip-mailbox 0.4.0) held 54 items and answered `sync` (`since: null`) with all of them in one `items`
+envelope of about 80 KB. The phone closed with 1009 (§13.2), reconnected, synced from the same cursor, and got the same
+envelope, forever. dsip-mailbox paged by item count only. M§5.4 already says a mailbox MUST paginate so every `items`
+envelope fits the cap; the implementation broke that, and two things let it ship:
+
+1. **Nothing in the suite can see it.** Mailbox traces state which items an `items` carries and its `next`, never its
+   encoded size, so no vector checks that a page fits 65,536 bytes, and three implementations agreed on a mailbox
+   that does not.
+2. **A device has no way out.** When its own mailbox sends an envelope over the cap, the spec's only response is
+   closing (1009) or `transport.envelope-too-large`, and the device's only next step is the same `sync`. `limit` is
+   the device's, but nothing says to lower it, and lowering it does not help if one page of `limit` items is still
+   too large.
+
+The dsip-mailbox fix (dsip-rs #56, released in v2026.11.11.1, mailbox 0.4.1) fills a page with the longest prefix of
+items that fits, and sets `next` to the last cursor it carries.
+
+Choices:
+
+- **(a) Test the MUST.** Mailbox traces gain an encoded-size check: every `items` an implementation emits is
+  serialized and signed as it would go on the wire, and a trace fails when one exceeds 65,536 bytes. A vector
+  deposits enough items near `MAX_MLS_BYTES` that `limit` items cannot fit, and expects two or more pages, each
+  `next` the last cursor carried. No spec change.
+- **(b) A device recovery rule (M§5.4).** A device whose mailbox sends an envelope over the cap SHOULD sync again with
+  a smaller `limit` (halving, down to 1, which `MAX_MLS_BYTES` guarantees fits), and MUST NOT retry the same `sync`
+  unchanged at once. Gives interoperation with a mailbox that pages by count. A 1.x clarification (§11.4).
+- **(c) Both.**
+- **(d) Neither:** the MUST stands, and the fix is the implementation's.
+
+**Recommended: (c).** (a) catches the next implementation that pages by count; (b) keeps a device from looping on a
+mailbox that does anyway, at the cost of one sentence.
+
+**Decided (2026-11-11, user: "(c) for gap 180"): (c).** In place:
+
+- **M§5.4:** the cap is on the encoded envelope, signature included, so a page may hold fewer than `limit` items and
+  paging by count alone does not satisfy the MUST. A device sent an envelope over the cap SHOULD sync again from the
+  same `since` with half the `limit` it last sent, at least 1 (one that sent none sends a `limit` of its choosing), and
+  MUST NOT send the same `sync` unchanged at once; at a `limit` of 1 the mailbox is at fault (`MAX_MLS_BYTES`) and the
+  same `sync` waits out the §13.2 reconnection backoff. The reduced `limit` holds until the device restarts.
+- **Core A.16** and **M-B** (within 1.0): a line each. Nothing on the wire changes (§11.4).
+
+Vectors: `messaging/items-pages-*` (5: the check `items-pages` signs and measures real frames; the expectation is what
+every conforming paging shares, never where it splits) and `messaging/resume-too-large-*` (3: `resume-trace`
+`too_large`, `context.limit`, `backoff`). A mailbox paging by count sends 220 KB, 71 KB and 178 KB frames on three of
+them. Python, impl-ts and dsip-rs agree; `fuzz.py`'s resume traces carry `too_large`.
+
+In dsip-rs the `items-pages` runner calls the function the mailbox service pages with (`dsip_messaging::wire::fit_items`,
+moved from `dsip-mailbox`), so the vector tests the code that sends the frames: the mailbox trace model, which the
+vectors had tested before, never paged by bytes. A device that sent no `limit` sends 100 after the first refusal
+(`Impl:`, `LIMIT_AFTER_TOO_LARGE`).

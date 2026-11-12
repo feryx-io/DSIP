@@ -1,0 +1,40 @@
+{
+  "vector": "messaging/items-pages-one-item-at-max",
+  "format": 1,
+  "kind": "messaging",
+  "description": "A single item at MAX_MLS_BYTES fits one envelope: next is null at once.",
+  "spec_ref": [
+    "M§5.4",
+    "§13.2",
+    "M§5.1"
+  ],
+  "context": {
+    "component": "mailbox-pages",
+    "mailbox_key": "relay",
+    "device": "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn",
+    "now": 1760000000
+  },
+  "input": {
+    "check": "items-pages",
+    "limit": 200,
+    "items": [
+      {
+        "cursor": "c:0000000000000001",
+        "stored_at": 1760000000,
+        "class": "application",
+        "source": "did:web:mbx.alice.example",
+        "group": "MDFLNzQyU0cwMEhBWlpDS0MxMzFFQzBQR1M",
+        "seq": 1,
+        "mls_bytes": 24576
+      }
+    ]
+  },
+  "expect": {
+    "cursors": [
+      "c:0000000000000001"
+    ],
+    "fit": true,
+    "within_limit": true,
+    "next_chain": true
+  }
+}

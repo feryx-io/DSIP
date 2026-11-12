@@ -87,6 +87,7 @@ def vectors() -> list[dict]:
     out += history_vectors()
     out += commit_retry_vectors()
     out += resume_vectors()
+    out += items_pages_vectors()
     out += mls_layer_vectors()
     out += discovery_vectors()
     out += blob_vectors()
@@ -1772,6 +1773,39 @@ def resume_vectors():
                          ({"restart": {}}, sync(1), st(1)),
                          (items(it(2, "welcome", seq=9)), [{"process": c(2)}], st(2, {GROUP: (9,)}, [GROUP])),
                      ]))
+    # --- spec-gap 180: an envelope over the cap from the device's own mailbox
+    L = {**ctx, "limit": 200}
+
+    def lsync(cursor, limit):
+        s_ = {"since": None} if cursor is None else {"since": c(cursor), "ack_through": c(cursor)}
+        return [{"sync": {**s_, "limit": limit}}]
+
+    out.append(trace("resume-too-large-halves-the-limit",
+                     "A mailbox answered the sync with an envelope over the cap (spec-gap 180). The same sync would get the "
+                     "same envelope, so the device syncs from the same cursor with half the limit, again on each refusal; "
+                     "the reduced limit stays for later syncs, and a restart returns to the device's own.",
+                     refs + ["§13.2"], T, L, [
+                         (items(W, it(2, seq=1)), [{"process": c(1)}, {"process": c(2)}], st(2, {GROUP: (1,)}, [GROUP])),
+                         ({"too_large": {}}, lsync(2, 100), st(2, {GROUP: (1,)}, [GROUP])),
+                         ({"too_large": {}}, lsync(2, 50), st(2, {GROUP: (1,)}, [GROUP])),
+                         (items(it(3, seq=2)), [{"process": c(3)}], st(3, {GROUP: (2,)}, [GROUP])),
+                         ({"sync": {}}, lsync(3, 50), st(3, {GROUP: (2,)}, [GROUP])),
+                         ({"restart": {}}, lsync(3, 200), st(3, {GROUP: (2,)}, [GROUP])),
+                     ]))
+    out.append(trace("resume-too-large-from-null",
+                     "Before anything is committed the retry is from null, with no acknowledgement, at half the limit (spec-gap 180).",
+                     refs + ["§13.2"], T, {**ctx, "limit": 7}, [
+                         ({"too_large": {}}, lsync(None, 3), st()),
+                         ({"too_large": {}}, lsync(None, 1), st()),
+                     ]))
+    out.append(trace("resume-too-large-at-one-backs-off",
+                     "At a limit of 1 the mailbox is at fault, since MAX_MLS_BYTES makes any one item fit: the device does not "
+                     "go below 1, and sends the same sync again only after the §13.2 reconnection backoff (spec-gap 180).",
+                     refs + ["§13.2", "M§5.1"], T, {**ctx, "cursor": c(4), "limit": 2}, [
+                         ({"too_large": {}}, lsync(4, 1), st(4)),
+                         ({"too_large": {}}, [{"backoff": {}}] + lsync(4, 1), st(4)),
+                         ({"cursor_invalid": {}}, lsync(None, 1), st()),
+                     ]))
     out.append(trace("resume-removed-other-group-unaffected",
                      "Removal from one group leaves every other group joined.", refs + ["M§7.3"], T, ctx, [
                          (items(W, it(2, "welcome", group=GROUP2)), [{"process": c(1)}, {"process": c(2)}],
@@ -1789,6 +1823,44 @@ EXT_DELEG, EXT_CONV = 0xF0D1, 0xF0D2
 
 def compact(env: dict) -> str:
     return f"{env['protected']}.{env['payload']}.{env['signature']}"
+
+
+
+def items_pages_vectors():
+    """M§5.4: every `items` envelope fits the `ws/1.0` cap as encoded and signed (§13.2, spec-gap 180). Each vector holds
+    items whose `mls` is `mls_bytes` long; the mailbox pages them however it likes, and what is expected is what every
+    conforming paging shares: all cursors in order, every page within the cap and the limit, `next` chained."""
+    out = []
+    ctx = {"component": "mailbox-pages", "mailbox_key": "relay", "device": F.did("bob-phone"), "now": NOW}
+    refs = ["M§5.4", "§13.2"]
+
+    def items(*sizes):
+        return [{"cursor": c(i + 1), "stored_at": NOW, "class": "application", "source": HUB_A, "group": GROUP,
+                 "seq": i + 1, "mls_bytes": n} for i, n in enumerate(sizes)]
+
+    def ok(n):
+        return {"cursors": [c(i + 1) for i in range(n)], "fit": True, "within_limit": True, "next_chain": True}
+
+    M = 24576  # MAX_MLS_BYTES, M§5.1
+    out.append(mv("items-pages-fit-the-cap",
+                  "Five items at MAX_MLS_BYTES under a limit of 200: one envelope would be about 170 KB, so the mailbox sends "
+                  "several, each within the cap, and the device reaches every item by following next (spec-gap 180). Paging "
+                  "by count alone sends one envelope the device must refuse.",
+                  refs + ["M§5.1"], {"check": "items-pages", "limit": 200, "items": items(*[M] * 5)}, ok(5), ctx=ctx))
+    out.append(mv("items-pages-many-small-items",
+                  "Fifty-four items of 600 bytes each, the store that looped a phone: under the count limit, over the cap as "
+                  "one envelope (spec-gap 180).",
+                  refs, {"check": "items-pages", "limit": 200, "items": items(*[600] * 54)}, ok(54), ctx=ctx))
+    out.append(mv("items-pages-mixed-sizes",
+                  "Small items between large ones: every page fits and none is empty, wherever the mailbox splits (spec-gap 180).",
+                  refs, {"check": "items-pages", "limit": 200, "items": items(100, M, 100, M, M, 100, 100, M)}, ok(8), ctx=ctx))
+    out.append(mv("items-pages-limit-still-bounds",
+                  "Items that fit easily are still paged by the device's limit.",
+                  refs, {"check": "items-pages", "limit": 2, "items": items(100, 100, 100, 100, 100)}, ok(5), ctx=ctx))
+    out.append(mv("items-pages-one-item-at-max",
+                  "A single item at MAX_MLS_BYTES fits one envelope: next is null at once.",
+                  refs + ["M§5.1"], {"check": "items-pages", "limit": 200, "items": items(M)}, ok(1), ctx=ctx))
+    return out
 
 
 def mls_layer_vectors():

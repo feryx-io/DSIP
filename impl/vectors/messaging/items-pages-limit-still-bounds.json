@@ -1,0 +1,79 @@
+{
+  "vector": "messaging/items-pages-limit-still-bounds",
+  "format": 1,
+  "kind": "messaging",
+  "description": "Items that fit easily are still paged by the device's limit.",
+  "spec_ref": [
+    "M§5.4",
+    "§13.2"
+  ],
+  "context": {
+    "component": "mailbox-pages",
+    "mailbox_key": "relay",
+    "device": "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn",
+    "now": 1760000000
+  },
+  "input": {
+    "check": "items-pages",
+    "limit": 2,
+    "items": [
+      {
+        "cursor": "c:0000000000000001",
+        "stored_at": 1760000000,
+        "class": "application",
+        "source": "did:web:mbx.alice.example",
+        "group": "MDFLNzQyU0cwMEhBWlpDS0MxMzFFQzBQR1M",
+        "seq": 1,
+        "mls_bytes": 100
+      },
+      {
+        "cursor": "c:0000000000000002",
+        "stored_at": 1760000000,
+        "class": "application",
+        "source": "did:web:mbx.alice.example",
+        "group": "MDFLNzQyU0cwMEhBWlpDS0MxMzFFQzBQR1M",
+        "seq": 2,
+        "mls_bytes": 100
+      },
+      {
+        "cursor": "c:0000000000000003",
+        "stored_at": 1760000000,
+        "class": "application",
+        "source": "did:web:mbx.alice.example",
+        "group": "MDFLNzQyU0cwMEhBWlpDS0MxMzFFQzBQR1M",
+        "seq": 3,
+        "mls_bytes": 100
+      },
+      {
+        "cursor": "c:0000000000000004",
+        "stored_at": 1760000000,
+        "class": "application",
+        "source": "did:web:mbx.alice.example",
+        "group": "MDFLNzQyU0cwMEhBWlpDS0MxMzFFQzBQR1M",
+        "seq": 4,
+        "mls_bytes": 100
+      },
+      {
+        "cursor": "c:0000000000000005",
+        "stored_at": 1760000000,
+        "class": "application",
+        "source": "did:web:mbx.alice.example",
+        "group": "MDFLNzQyU0cwMEhBWlpDS0MxMzFFQzBQR1M",
+        "seq": 5,
+        "mls_bytes": 100
+      }
+    ]
+  },
+  "expect": {
+    "cursors": [
+      "c:0000000000000001",
+      "c:0000000000000002",
+      "c:0000000000000003",
+      "c:0000000000000004",
+      "c:0000000000000005"
+    ],
+    "fit": true,
+    "within_limit": true,
+    "next_chain": true
+  }
+}

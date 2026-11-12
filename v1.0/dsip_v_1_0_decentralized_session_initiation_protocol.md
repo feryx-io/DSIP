@@ -2781,6 +2781,10 @@ or rejects.
   key; the DHT Hints Profile's hint carries the delegation (`key_agreement`). A sender that does not implement it
   seals to the derived key as before, which only devices holding the identity key open; no 1.0 message changes.
   `key-agreement/` vectors.
+- Messaging Profile 1.0, M§5.4: the cap on an `items` page is on the encoded envelope, so a page may hold fewer than
+  `limit` items; a device whose mailbox sends an envelope over the cap syncs again with half the `limit`, never the
+  same `sync` unchanged (spec-gap 180). Nothing on the wire changes; a device that does not do it loops on such a
+  mailbox, as it did before.
 
 ---
 

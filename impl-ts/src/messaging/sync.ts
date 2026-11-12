@@ -22,11 +22,17 @@ export class Resume implements Machine {
   private cursor: string | null;
   private readonly groups: Record<string, Position>;
   private joined: string[];
+  /** The device's own `limit`, when the trace states one; not durable, so a restart returns to it. */
+  private readonly baseLimit: number | undefined;
+  /** The `limit` it syncs with now: halved for each envelope over the cap. Spec: M§5.4 (spec-gap 180) */
+  private limit: number | undefined;
 
-  constructor(ctx: { cursor: string | null; groups: Record<string, Position>; joined: string[] }) {
+  constructor(ctx: { cursor: string | null; groups: Record<string, Position>; joined: string[]; limit?: number }) {
     this.cursor = ctx.cursor;
     this.groups = structuredClone(ctx.groups);
     this.joined = [...ctx.joined];
+    this.baseLimit = ctx.limit;
+    this.limit = ctx.limit;
   }
 
   step(e: JsonObject): Step {
@@ -60,7 +66,16 @@ export class Resume implements Machine {
       this.joined = this.joined.filter((g) => g !== group);
     } else {
       if ("cursor_invalid" in e) this.cursor = null; // mailbox.cursor-invalid: re-sync from null
-      emit.push({ sync: this.cursor === null ? { since: null } : { since: this.cursor, ack_through: this.cursor } });
+      if ("restart" in e) this.limit = this.baseLimit; // only durable state survives a restart
+      if ("too_large" in e) {
+        // M§5.4 (spec-gap 180): the same sync would get the same oversized envelope. Halve the limit, at least 1; at 1
+        // the mailbox is at fault (MAX_MLS_BYTES), and the same sync waits out the §13.2 reconnection backoff.
+        if (this.limit === 1) emit.push({ backoff: {} });
+        else this.limit = Math.max(1, Math.floor(this.limit! / 2));
+      }
+      const sync: JsonObject = this.cursor === null ? { since: null } : { since: this.cursor, ack_through: this.cursor };
+      if (this.limit !== undefined) sync["limit"] = this.limit;
+      emit.push({ sync });
     }
     return { emit, state: { cursor: this.cursor, groups: structuredClone(this.groups) as unknown as JsonObject, joined: [...this.joined] } };
   }

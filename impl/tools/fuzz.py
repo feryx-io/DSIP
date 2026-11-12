@@ -298,6 +298,8 @@ def gen_mailbox(r: random.Random):
 
 def gen_resume(r: random.Random):
     ev, n = [], 0
+    limit = r.choice([None, None, 1, 2, 7, 200])  # the device's own limit (spec-gap 180); too_large needs one stated
+    resyncs = ["sync", "restart", "cursor_invalid"] + (["too_large", "too_large"] if limit is not None else [])
     for _ in range(r.randint(2, 7)):
         x = r.random()
         if x < 0.55:
@@ -324,8 +326,11 @@ def gen_resume(r: random.Random):
         elif x < 0.78:
             ev.append({"removed": {"group": r.choice([G1, G2])}})  # spec-gap 127
         else:
-            ev.append({r.choice(["sync", "restart", "cursor_invalid"]): {}})
-    return "messaging", "resume-trace", {"component": "resume", "cursor": None, "groups": {}, "joined": []}, ev
+            ev.append({r.choice(resyncs): {}})
+    ctx = {"component": "resume", "cursor": None, "groups": {}, "joined": []}
+    if limit is not None:
+        ctx["limit"] = limit
+    return "messaging", "resume-trace", ctx, ev
 
 
 def gen_history(r: random.Random):

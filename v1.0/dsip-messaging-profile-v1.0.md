@@ -500,7 +500,14 @@ The mailbox answers with one or more `items`:
 - Items are in cursor order; cursors increase monotonically per mailbox.
 - `next` is the cursor to pass as `since` for more, `null` when caught up.
 - A mailbox MUST paginate so every `items` envelope fits the transport cap; `MAX_MLS_BYTES`
-  guarantees any single item fits.
+  guarantees any single item fits. The cap is on the encoded envelope, signature included, so a page
+  may hold fewer than `limit` items: paging by count alone does not satisfy this (spec-gap 180).
+- A device whose mailbox answers a `sync` with an envelope over the cap (§13.2: the device closes
+  with 1009 or answers `transport.envelope-too-large`) SHOULD send its next `sync` from the same
+  `since` with half the `limit` it last sent, at least 1 (a device that sent none sends a `limit`
+  of its choosing), and MUST NOT send the same `sync` again unchanged at once. At a `limit` of 1
+  the mailbox is at fault (`MAX_MLS_BYTES`): the device repeats the `sync` only after the §13.2
+  reconnection backoff. The reduced `limit` holds until the device restarts (spec-gap 180).
 - A pushed `items` (live) has no `in_reply_to`.
 - A pushed `ephemeral` item (M§11.2, spec-gap 49) is not stored, so it has no `cursor` or `stored_at`:
   it is `{ "class": "ephemeral", "group", "source", "sealed", "expires_at" }`, where `expires_at` is
@@ -2021,3 +2028,4 @@ Within 1.0:
 | spec-gap | where | what |
 |---|---|---|
 | 164 | M§4.1 | the operator MAY end an enrolment, with the same effects as a release and no message sent; `enrolment-trace` `operator_release` |
+| 180 | M§5.4 | a page fits the cap as encoded, so it may hold fewer than `limit` items; a device sent an envelope over the cap syncs again with half the `limit`; `items-pages`, `resume-trace` `too_large` |

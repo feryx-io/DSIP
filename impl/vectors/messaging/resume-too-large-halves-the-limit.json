@@ -1,0 +1,213 @@
+{
+  "vector": "messaging/resume-too-large-halves-the-limit",
+  "format": 1,
+  "kind": "messaging",
+  "description": "A mailbox answered the sync with an envelope over the cap (spec-gap 180). The same sync would get the same envelope, so the device syncs from the same cursor with half the limit, again on each refusal; the reduced limit stays for later syncs, and a restart returns to the device's own.",
+  "spec_ref": [
+    "M§5.4",
+    "M§8.5",
+    "§13.2"
+  ],
+  "context": {
+    "component": "resume",
+    "cursor": null,
+    "groups": {},
+    "joined": [],
+    "limit": 200
+  },
+  "input": {
+    "check": "resume-trace",
+    "steps": [
+      {
+        "event": {
+          "items": {
+            "items": [
+              {
+                "cursor": "c:0000000000000001",
+                "class": "welcome",
+                "group": "MDFLNzQyU0cwMEhBWlpDS0MxMzFFQzBQR1M"
+              },
+              {
+                "cursor": "c:0000000000000002",
+                "class": "application",
+                "group": "MDFLNzQyU0cwMEhBWlpDS0MxMzFFQzBQR1M",
+                "seq": 1
+              }
+            ]
+          }
+        }
+      },
+      {
+        "event": {
+          "too_large": {}
+        }
+      },
+      {
+        "event": {
+          "too_large": {}
+        }
+      },
+      {
+        "event": {
+          "items": {
+            "items": [
+              {
+                "cursor": "c:0000000000000003",
+                "class": "application",
+                "group": "MDFLNzQyU0cwMEhBWlpDS0MxMzFFQzBQR1M",
+                "seq": 2
+              }
+            ]
+          }
+        }
+      },
+      {
+        "event": {
+          "sync": {}
+        }
+      },
+      {
+        "event": {
+          "restart": {}
+        }
+      }
+    ]
+  },
+  "expect": {
+    "steps": [
+      {
+        "emit": [
+          {
+            "process": "c:0000000000000001"
+          },
+          {
+            "process": "c:0000000000000002"
+          }
+        ],
+        "state": {
+          "cursor": "c:0000000000000002",
+          "groups": {
+            "MDFLNzQyU0cwMEhBWlpDS0MxMzFFQzBQR1M": {
+              "contiguous": 1,
+              "seen": []
+            }
+          },
+          "joined": [
+            "MDFLNzQyU0cwMEhBWlpDS0MxMzFFQzBQR1M"
+          ]
+        }
+      },
+      {
+        "emit": [
+          {
+            "sync": {
+              "since": "c:0000000000000002",
+              "ack_through": "c:0000000000000002",
+              "limit": 100
+            }
+          }
+        ],
+        "state": {
+          "cursor": "c:0000000000000002",
+          "groups": {
+            "MDFLNzQyU0cwMEhBWlpDS0MxMzFFQzBQR1M": {
+              "contiguous": 1,
+              "seen": []
+            }
+          },
+          "joined": [
+            "MDFLNzQyU0cwMEhBWlpDS0MxMzFFQzBQR1M"
+          ]
+        }
+      },
+      {
+        "emit": [
+          {
+            "sync": {
+              "since": "c:0000000000000002",
+              "ack_through": "c:0000000000000002",
+              "limit": 50
+            }
+          }
+        ],
+        "state": {
+          "cursor": "c:0000000000000002",
+          "groups": {
+            "MDFLNzQyU0cwMEhBWlpDS0MxMzFFQzBQR1M": {
+              "contiguous": 1,
+              "seen": []
+            }
+          },
+          "joined": [
+            "MDFLNzQyU0cwMEhBWlpDS0MxMzFFQzBQR1M"
+          ]
+        }
+      },
+      {
+        "emit": [
+          {
+            "process": "c:0000000000000003"
+          }
+        ],
+        "state": {
+          "cursor": "c:0000000000000003",
+          "groups": {
+            "MDFLNzQyU0cwMEhBWlpDS0MxMzFFQzBQR1M": {
+              "contiguous": 2,
+              "seen": []
+            }
+          },
+          "joined": [
+            "MDFLNzQyU0cwMEhBWlpDS0MxMzFFQzBQR1M"
+          ]
+        }
+      },
+      {
+        "emit": [
+          {
+            "sync": {
+              "since": "c:0000000000000003",
+              "ack_through": "c:0000000000000003",
+              "limit": 50
+            }
+          }
+        ],
+        "state": {
+          "cursor": "c:0000000000000003",
+          "groups": {
+            "MDFLNzQyU0cwMEhBWlpDS0MxMzFFQzBQR1M": {
+              "contiguous": 2,
+              "seen": []
+            }
+          },
+          "joined": [
+            "MDFLNzQyU0cwMEhBWlpDS0MxMzFFQzBQR1M"
+          ]
+        }
+      },
+      {
+        "emit": [
+          {
+            "sync": {
+              "since": "c:0000000000000003",
+              "ack_through": "c:0000000000000003",
+              "limit": 200
+            }
+          }
+        ],
+        "state": {
+          "cursor": "c:0000000000000003",
+          "groups": {
+            "MDFLNzQyU0cwMEhBWlpDS0MxMzFFQzBQR1M": {
+              "contiguous": 2,
+              "seen": []
+            }
+          },
+          "joined": [
+            "MDFLNzQyU0cwMEhBWlpDS0MxMzFFQzBQR1M"
+          ]
+        }
+      }
+    ]
+  }
+}

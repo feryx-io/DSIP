@@ -34,6 +34,7 @@ import { Enrolment } from "./messaging/enrolment.js";
 import * as mcrypto from "./messaging/crypto.js";
 import * as blobs from "./messaging/blobs.js";
 import * as rules from "./messaging/rules.js";
+import { itemsPages } from "./messaging/pages.js";
 import { messagingSchemas } from "./messaging/schemas.js";
 import { Relay, type RelayContext } from "./relay.js";
 import { SchemaSet } from "./schema.js";
@@ -177,6 +178,8 @@ function messaging(v: Vector): Json | undefined {
       return blobs.blobReplicate(i as never);
     case "blob-fetch":
       return blobs.blobFetch(i as never);
+    case "items-pages":
+      return itemsPages(v.context as unknown as JsonObject, i as never);
     case "items-blobs":
       return blobs.itemsBlobs(i["blob_endpoint"] as string, i["stored"] as string[], i["manifest"] as never);
     case "blob-sources":
