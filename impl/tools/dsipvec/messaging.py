@@ -1691,6 +1691,10 @@ class Resume:
         self.cursor = ctx.get("cursor")
         self.groups = {g: {"contiguous": p["contiguous"], "seen": set(p["seen"])} for g, p in ctx.get("groups", {}).items()}
         self.joined = set(ctx.get("joined", []))
+        # spec-gap 180: the `limit` the device syncs with, when the trace states one; halved for every envelope over the
+        # cap, and back to this on restart (it is not durable state)
+        self.base_limit = ctx.get("limit")
+        self.limit = self.base_limit
 
     def step(self, ev: dict) -> list:
         (name, e), = ev.items()
@@ -1768,10 +1772,21 @@ class Resume:
         s = {"since": self.cursor}
         if self.cursor is not None:
             s["ack_through"] = self.cursor  # never ahead of what is committed
+        if self.limit is not None:
+            s["limit"] = self.limit
         return [{"sync": s}]
 
     def _restart(self, e: dict) -> list:
-        self.__init__(self.snapshot())  # only durable state survives
+        self.__init__({**self.snapshot(), "limit": self.base_limit})  # only durable state survives
+        return self._sync(e)
+
+    def _too_large(self, e: dict) -> list:
+        """M§5.4 (spec-gap 180): the mailbox answered the last `sync` with an envelope over the cap (§13.2). The same
+        `sync` would get the same envelope, so the device syncs from the same cursor with half the limit, at least 1."""
+        if self.limit == 1:
+            # MAX_MLS_BYTES makes any one item fit: the mailbox is at fault, and the same sync waits out the §13.2 backoff
+            return [{"backoff": {}}] + self._sync(e)
+        self.limit = max(1, self.limit // 2)  # traces with `too_large` state the device's `limit` in context
         return self._sync(e)
 
     def _cursor_invalid(self, e: dict) -> list:
@@ -1782,6 +1797,54 @@ class Resume:
         return {"cursor": self.cursor,
                 "groups": {g: {"contiguous": p["contiguous"], "seen": sorted(p["seen"])} for g, p in sorted(self.groups.items())},
                 "joined": sorted(self.joined)}
+
+
+def items_pages(v: dict) -> dict:
+    """M§5.4 (spec-gap 180): a mailbox answers `sync` with `items` envelopes that each fit the `ws/1.0` cap (§13.2) as
+    encoded and signed, never paging by count alone; the device follows `next` until it is `null`.
+
+    The mailbox signs with the fixture key `context.mailbox_key`; each item's `mls` is `mls_bytes` zero bytes. What is
+    reported is what every conforming mailbox shares, not where it splits: the cursors delivered, in order; whether every
+    page fits the cap and holds at most `limit` items; and whether each page's `next` is its last cursor (`null` on the
+    last page), with no empty page before it.
+    Impl: a page is the longest prefix of the remaining items that fits, at most `limit`.
+    """
+    from .crypto import keypair_from_seed_name, b64url_encode as b64
+    from . import envelope as env
+    ctx, inp = v["context"], v["input"]
+    key = keypair_from_seed_name(ctx["mailbox_key"])
+    kid = key.did + "#" + key.did.split(":")[-1]
+    now, limit = ctx["now"], inp.get("limit", 200)
+    stored = [{**{k: x for k, x in it.items() if k != "mls_bytes"}, "mls": b64(bytes(it["mls_bytes"]))} for it in inp["items"]]
+    sync_id = U.encode(now * 1000, bytes(10))
+
+    def frame(page: list, nxt, n: int) -> str:
+        payload = {"dsip": {"core": "1.0", "min_core": "1.0", "profiles": ["messaging/1.0"], "extensions": [], "critical": []},
+                   "type": "items", "id": U.encode(now * 1000, n.to_bytes(10, "big")), "from": key.did, "to": ctx["device"],
+                   "in_reply_to": sync_id, "items": page, "next": nxt, "issued_at": now, "expires_at": now + 30}
+        return env.frame(env.sign(payload, key, kid))
+
+    def fits(f: str) -> bool:
+        return len(f.encode("utf-8")) <= env.WS_MAX_ENVELOPE_BYTES
+
+    cursors, fit, within, chain, rest, n = [], True, True, True, stored, 0
+    while True:
+        k = min(limit, len(rest))
+        while k > 1 and not fits(frame(rest[:k], rest[k - 1]["cursor"], n)):
+            k -= 1
+        page = rest[:k]
+        nxt = page[-1]["cursor"] if len(rest) > k else None
+        f = frame(page, nxt, n)
+        n += 1
+        fit &= fits(f)
+        within &= len(page) <= limit
+        cursors += [it["cursor"] for it in page]
+        rest = rest[k:]
+        if nxt is None:
+            chain &= not rest
+            break
+        chain &= bool(page) and nxt == page[-1]["cursor"]
+    return {"cursors": cursors, "fit": fit, "within_limit": within, "next_chain": chain}
 
 
 # ---------------------------------------------------------------- tranche 3: the MLS layer (M§6.2, M§6.3, M§8.4, M§11.1, M§12.2)
@@ -2277,6 +2340,8 @@ def run(v: dict) -> dict:
         return check_successor(inp)
     if check == "successor-select":
         return select_successor(inp["candidates"])
+    if check == "items-pages":
+        return items_pages(v)
     if check in ("hub-trace", "mailbox-trace", "client-trace", "gap-trace", "resume-trace", "history-trace", "commit-retry-trace",
                  "successor-trace", "hub-outage-trace", "move-arrival-trace", "enrolment-trace"):
         comp = {"hub-trace": Hub, "mailbox-trace": Mailbox, "client-trace": Client, "gap-trace": GapTracker,

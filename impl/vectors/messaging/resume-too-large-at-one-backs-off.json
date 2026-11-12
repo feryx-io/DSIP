@@ -1,0 +1,93 @@
+{
+  "vector": "messaging/resume-too-large-at-one-backs-off",
+  "format": 1,
+  "kind": "messaging",
+  "description": "At a limit of 1 the mailbox is at fault, since MAX_MLS_BYTES makes any one item fit: the device does not go below 1, and sends the same sync again only after the §13.2 reconnection backoff (spec-gap 180).",
+  "spec_ref": [
+    "M§5.4",
+    "M§8.5",
+    "§13.2",
+    "M§5.1"
+  ],
+  "context": {
+    "component": "resume",
+    "cursor": "c:0000000000000004",
+    "groups": {},
+    "joined": [],
+    "limit": 2
+  },
+  "input": {
+    "check": "resume-trace",
+    "steps": [
+      {
+        "event": {
+          "too_large": {}
+        }
+      },
+      {
+        "event": {
+          "too_large": {}
+        }
+      },
+      {
+        "event": {
+          "cursor_invalid": {}
+        }
+      }
+    ]
+  },
+  "expect": {
+    "steps": [
+      {
+        "emit": [
+          {
+            "sync": {
+              "since": "c:0000000000000004",
+              "ack_through": "c:0000000000000004",
+              "limit": 1
+            }
+          }
+        ],
+        "state": {
+          "cursor": "c:0000000000000004",
+          "groups": {},
+          "joined": []
+        }
+      },
+      {
+        "emit": [
+          {
+            "backoff": {}
+          },
+          {
+            "sync": {
+              "since": "c:0000000000000004",
+              "ack_through": "c:0000000000000004",
+              "limit": 1
+            }
+          }
+        ],
+        "state": {
+          "cursor": "c:0000000000000004",
+          "groups": {},
+          "joined": []
+        }
+      },
+      {
+        "emit": [
+          {
+            "sync": {
+              "since": null,
+              "limit": 1
+            }
+          }
+        ],
+        "state": {
+          "cursor": null,
+          "groups": {},
+          "joined": []
+        }
+      }
+    ]
+  }
+}

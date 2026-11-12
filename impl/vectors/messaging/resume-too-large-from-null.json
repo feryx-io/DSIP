@@ -1,0 +1,67 @@
+{
+  "vector": "messaging/resume-too-large-from-null",
+  "format": 1,
+  "kind": "messaging",
+  "description": "Before anything is committed the retry is from null, with no acknowledgement, at half the limit (spec-gap 180).",
+  "spec_ref": [
+    "M§5.4",
+    "M§8.5",
+    "§13.2"
+  ],
+  "context": {
+    "component": "resume",
+    "cursor": null,
+    "groups": {},
+    "joined": [],
+    "limit": 7
+  },
+  "input": {
+    "check": "resume-trace",
+    "steps": [
+      {
+        "event": {
+          "too_large": {}
+        }
+      },
+      {
+        "event": {
+          "too_large": {}
+        }
+      }
+    ]
+  },
+  "expect": {
+    "steps": [
+      {
+        "emit": [
+          {
+            "sync": {
+              "since": null,
+              "limit": 3
+            }
+          }
+        ],
+        "state": {
+          "cursor": null,
+          "groups": {},
+          "joined": []
+        }
+      },
+      {
+        "emit": [
+          {
+            "sync": {
+              "since": null,
+              "limit": 1
+            }
+          }
+        ],
+        "state": {
+          "cursor": null,
+          "groups": {},
+          "joined": []
+        }
+      }
+    ]
+  }
+}
