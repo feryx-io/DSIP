@@ -12,11 +12,15 @@ import { reject, type Reject, type Verdict } from "./verdict.js";
 
 const WEBRTC = "transport:webrtc";
 
-/** Spec: B§3.4 — DSIP codec id → the `a=rtpmap` encoding name that must be present. */
+/** Spec: B§3.4 — DSIP codec id → the `a=rtpmap` that must be present; a codec with no row is not checked (spec-gap 182). */
 const RTPMAP: Record<string, string> = {
   "codec:audio/opus": "opus/48000/2",
+  "codec:audio/pcmu": "PCMU/8000",
+  "codec:audio/pcma": "PCMA/8000",
+  "codec:audio/g722": "G722/8000",
   "codec:video/h264": "H264/90000",
   "codec:video/vp8": "VP8/90000",
+  "codec:video/vp9": "VP9/90000",
   "codec:video/av1": "AV1/90000",
 };
 

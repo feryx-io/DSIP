@@ -1172,7 +1172,7 @@ A `content` object:
 |---|---|
 | `text` | `text` (string), `content_type` `text/plain` (MUST support) or `text/markdown` (MAY; render as plain when unsupported) |
 | `audio` | `blob` (M§8.4), `duration_ms`; `audio/ogg; codecs=opus` MUST be supported |
-| `video` | `blob`, `duration_ms`; `video/webm` SHOULD be supported |
+| `video` | `blob`, `duration_ms`; `video/mp4` with H.264 constrained baseline video and Opus audio MUST be supported by a client that renders video, and is what a client sends; `video/webm` MAY be (spec-gap 183) |
 | `image` | `blob`, optional `width`, `height`, `thumbnail` (inline base64url ≤ 8,192 bytes) |
 | `file` | `blob`, `name` |
 | `contact` | `did`, optional `display_name`, `contact_token` (§19.4) |
@@ -1218,6 +1218,11 @@ Large payloads are encrypted client-side and stored as opaque blobs:
    mailbox (M§15.1), falling back to the original `uri`.
 7. A device MUST verify `sha256` and `size` before decrypting and MUST discard a mismatch.
 8. The source mailbox retains a blob at least `blob_retention_s` (RECOMMENDED 2,592,000 s).
+
+(spec-gap 183) A recording is one blob, so its size is bounded by the sender's mailbox `max_blob_bytes` (M§4.2;
+chunked blobs are deferred, M§19). A client recording video SHOULD choose its bitrate so that the longest recording
+it allows fits: 180 s at 1 Mbit/s, video and audio together, is about 22.5 MB. Its mailbox refuses a larger blob
+(`mailbox.object-too-large`).
 
 (spec-gap 65) Rule 6 precisely:
 
@@ -1578,6 +1583,9 @@ unregistered condition in any other category does not, because it may be block-l
 - Recording MUST stop at `voicemail.max_duration_s`.
 - The object carries `session` (the invite `id`) and `duration_ms`.
 - `audio/ogg; codecs=opus` MUST be supported.
+- A voicemail MAY be `video` only when the attempt's `invite` offered video and the callee's `DSIPMailbox` entry lists
+  `video` in `accepts` (M§4.2); otherwise it is `audio` (spec-gap 184). A client offering a video voicemail also
+  offers to leave a voice one instead.
 - A greeting, if the callee publishes one, is an optional unencrypted `voicemail.greeting`
   `{uri, sha256, size}` in the service entry. It is public by the owner's choice.
 
@@ -2029,3 +2037,5 @@ Within 1.0:
 |---|---|---|
 | 164 | M§4.1 | the operator MAY end an enrolment, with the same effects as a release and no message sent; `enrolment-trace` `operator_release` |
 | 180 | M§5.4 | a page fits the cap as encoded, so it may hold fewer than `limit` items; a device sent an envelope over the cap syncs again with half the `limit`; `items-pages`, `resume-trace` `too_large` |
+| 183 | M§8.2, M§8.4 | `video` content is `video/mp4` (H.264 constrained baseline, Opus), which a client rendering video MUST play; `video/webm` MAY; a recording's bitrate fits `max_blob_bytes` |
+| 184 | M§13.2 | a voicemail is `video` only when the attempt offered video and the callee's entry `accepts` `video`; else `audio`; `voicemail-offer` `kind` |

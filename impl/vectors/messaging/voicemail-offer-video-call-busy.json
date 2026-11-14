@@ -1,0 +1,30 @@
+{
+  "vector": "messaging/voicemail-offer-video-call-busy",
+  "format": 1,
+  "kind": "messaging",
+  "description": "The video rule rides on the outcome rule: endpoint.busy after a video attempt, video accepted.",
+  "spec_ref": [
+    "M§13.2"
+  ],
+  "context": {},
+  "input": {
+    "check": "voicemail-offer",
+    "voicemail": {
+      "max_duration_s": 180
+    },
+    "can_send": true,
+    "outcome": {
+      "type": "reject",
+      "reason": "endpoint.busy"
+    },
+    "call_video": true,
+    "accepts": [
+      "video"
+    ]
+  },
+  "expect": {
+    "offer": true,
+    "kind": "video",
+    "max_duration_s": 180
+  }
+}

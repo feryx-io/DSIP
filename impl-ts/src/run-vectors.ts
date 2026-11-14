@@ -147,7 +147,13 @@ function messaging(v: Vector): Json | undefined {
     case "object":
       return checkObject(i["object"] as JsonObject, v.context as unknown as ObjectContext);
     case "voicemail-offer":
-      return rules.voicemailOffer(i["voicemail"] as JsonObject | null, i["can_send"] as boolean, i["outcome"] as never);
+      return rules.voicemailOffer(
+        i["voicemail"] as JsonObject | null,
+        i["can_send"] as boolean,
+        i["outcome"] as never,
+        i["call_video"] === true,
+        (i["accepts"] as string[] | undefined) ?? [],
+      );
     case "call-event":
       return rules.callEvent(i as never);
     case "peer-timeline":

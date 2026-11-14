@@ -5319,3 +5319,88 @@ In dsip-rs the `items-pages` runner calls the function the mailbox service pages
 moved from `dsip-mailbox`), so the vector tests the code that sends the frames: the mailbox trace model, which the
 vectors had tested before, never paged by bytes. A device that sent no `limit` sends 100 after the first refusal
 (`Impl:`, `LIMIT_AFTER_TOO_LARGE`).
+
+## 181. B§3.4, §17.1 — no video codec is mandatory, so two endpoints doing video may share none
+
+**Found (2026-11-13, planning video for dsip-app).** B§3.4 makes only Opus mandatory. Video codecs are listed with
+no requirement, and Core §17.1 asks for "at least one audio codec" only. The platforms the reference app runs on
+encode different sets: Apple (VideoToolbox) and Windows (Media Foundation) H.264 only; Android (MediaCodec) and Linux
+(libvpx, OpenH264) H.264 and VP8. Two conformant endpoints that both do video can offer disjoint codecs, and the call
+falls back to audio with nothing to say why.
+
+Choices:
+
+- **(a) H.264 constrained baseline MUST for an endpoint that offers or accepts video, VP8 SHOULD.** Every platform
+  meets it; browsers (RFC 7742: H.264 CB and VP8) interoperate.
+- **(b) H.264 and VP8 both MUST** (RFC 7742 parity). Apple and Windows need a software VP8 encoder to conform.
+- **(c) Leave it open, H.264 SHOULD.**
+
+**Recommended: (a).**
+
+**Decided (2026-11-13, user): (a).** In place, B§3.4: an endpoint that offers or accepts video MUST support
+`codec:video/h264` constrained baseline (`profile-level-id=42e01f`, `packetization-mode=1`) and SHOULD support
+`codec:video/vp8`; the table marks them. Core A.16 records it. It is a capability, not a wire rule: no message, field
+or token changes, and no vector can see it (an offer listing only VP8 is still well-formed).
+
+## 182. B§3.4 — the codec table is shorter than the mappings implementations check
+
+**Found (2026-11-13).** B§2.1 requires an `a=rtpmap` "for the mapped codec (§3.4)" for every descriptor codec. B§3.4
+maps Opus, H.264, VP8 and AV1. The Python harness and dsip-rs also map PCMU, PCMA, G722 and VP9 and reject a
+descriptor naming one of them with no matching `rtpmap`; `impl-ts`, written from the table, did not check them. No
+vector exercised the difference, so the suite agreed while the implementations did not.
+
+Choices:
+
+- **(a) Add the rows** (`PCMU/8000`, `PCMA/8000`, `G722/8000`, `VP9/90000`), and say a codec with no row is not
+  checked.
+- **(b) The table is exhaustive:** only listed codecs may be used over `transport:webrtc`; the others leave the code.
+
+**Recommended: (a)**, which is what the reference implementations do.
+
+**Decided (2026-11-13, user): (a).** In place, B§3.4 gains the four rows (G722's clock rate 8000, RFC 3551) and a
+paragraph: every row is checked by §2.1, a codec with no row has no mapping in binding 1.0 and is not checked.
+`impl-ts`'s map gains the rows. Vectors: `media-binding/offer-codec-{vp9-valid,vp9-missing,pcma-valid,g722-missing,
+unmapped-unchecked}` (5).
+
+## 183. M§8.2 — video content SHOULD be WebM, which cannot carry the one codec every platform encodes
+
+**Found (2026-11-13).** M§8.2: `video` content, "`video/webm` SHOULD be supported". WebM carries VP8, VP9 and AV1, not
+H.264, and H.264 is the only codec Apple and Windows encode (181). A video message from an iPhone either breaks the
+SHOULD or needs a software VP8 encoder. Nothing names a format every client can play. Video size has no guidance
+beyond `max_blob_bytes`, with chunked blobs deferred (M§19).
+
+Choices:
+
+- **(a) `video/mp4` with H.264 constrained baseline and Opus:** a client that renders video MUST play it, and it is
+  what clients send; WebM becomes MAY. A note on fitting `max_blob_bytes`.
+- **(b) MP4 and WebM both SHOULD.** Two clients may still not play each other's messages.
+- **(c) Keep WebM:** Apple and Windows clients ship a VP8 encoder.
+
+**Recommended: (a).** Unverified: Opus in MP4 on older Apple releases (playback is the client's to arrange).
+
+**Decided (2026-11-13, user): (a).** In place, M§8.2's `video` row, and after M§8.4's rule 8 a note: a recording is
+one blob, bounded by the sender's mailbox `max_blob_bytes`, so a client recording video SHOULD pick a bitrate at
+which its longest recording fits (180 s at 1 Mbit/s is about 22.5 MB). Messaging M-B and Core A.16 record it. The
+content check (`blob`, `duration_ms`) is unchanged, so no vector changes; the format is a client capability.
+
+## 184. M§13.2 — when a voicemail may be video
+
+**Found (2026-11-13).** M§13.1 lets a voicemail be `audio` or `video`; M§13.2 says when a caller may offer one and
+that `audio/ogg; codecs=opus` MUST be supported, but nothing says when it may be video. A client could record video
+after an audio-only call, or to a callee whose clients cannot render it (`accepts`, M§4.2).
+
+Choices:
+
+- **(a) Video only when the attempt offered video and the callee's entry `accepts` `video`; else audio.**
+- **(b) Video whenever the callee accepts it**, even after an audio-only call.
+- **(c) Audio only for now.**
+
+**Recommended: (a).**
+
+**Decided (2026-11-13, user): (a).** In place, M§13.2: a voicemail MAY be `video` only when the attempt's `invite`
+offered video and the callee's entry lists `video` in `accepts`, else `audio`; a client offering a video voicemail
+also offers a voice one. The `voicemail-offer` check gains inputs `call_video` and `accepts` and answers `kind`
+(`audio` or `video`) with every offer; the 7 vectors that offer now expect `kind: audio`, and 6 new ones
+(`voicemail-offer-{video-call-accepts-video,video-call-accepts-no-video,video-call-no-accepts,
+audio-call-accepts-video,video-call-busy,video-call-blocked}`) pin the rule. Python, impl-ts and dsip-rs
+(`dsip_messaging::client::voicemail_offer`, and `dsip-wasm`'s `voicemail_offer` with an optional `call_video`) agree.

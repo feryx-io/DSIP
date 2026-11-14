@@ -17,6 +17,7 @@
     }
   },
   "expect": {
-    "offer": true
+    "offer": true,
+    "kind": "audio"
   }
 }

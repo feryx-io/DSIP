@@ -20,6 +20,7 @@
   },
   "expect": {
     "offer": true,
+    "kind": "audio",
     "max_duration_s": 180
   }
 }

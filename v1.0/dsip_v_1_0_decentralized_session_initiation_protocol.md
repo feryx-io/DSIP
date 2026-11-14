@@ -2785,6 +2785,12 @@ or rejects.
   `limit` items; a device whose mailbox sends an envelope over the cap syncs again with half the `limit`, never the
   same `sync` unchanged (spec-gap 180). Nothing on the wire changes; a device that does not do it loops on such a
   mailbox, as it did before.
+- Video (spec-gaps 181–184). WebRTC Media Binding 1.0, B§3.4: an endpoint that offers or accepts video MUST support
+  H.264 constrained baseline and SHOULD support VP8, so two endpoints doing video share a codec (181); the codec
+  table gains rows for PCMU, PCMA, G722 and VP9, so §2.1's `a=rtpmap` check covers every codec the reference
+  implementations map (182). Messaging Profile 1.0: `video` content is `video/mp4` with H.264 and Opus, which a client
+  rendering video MUST play, as WebM cannot carry H.264 (M§8.2, 183); a voicemail is video only after an attempt that
+  offered video, to a callee whose entry accepts it (M§13.2, 184). No message, field or token changes.
 
 ---
 

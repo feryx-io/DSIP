@@ -1,0 +1,37 @@
+{
+  "vector": "media-binding/offer-codec-pcma-valid",
+  "format": 1,
+  "kind": "media-binding",
+  "description": "PCMA has a B§3.4 row: a pcma descriptor with a PCMA/8000 rtpmap.",
+  "spec_ref": [
+    "B§2.1",
+    "B§3.4"
+  ],
+  "context": {},
+  "input": {
+    "check": "offer",
+    "payload": {
+      "media": [
+        {
+          "type": "audio",
+          "direction": "sendrecv",
+          "codecs": [
+            {
+              "id": "codec:audio/pcma"
+            }
+          ]
+        }
+      ],
+      "transports": [
+        {
+          "id": "transport:webrtc",
+          "ice": "trickle",
+          "sdp": "v=0\r\no=- 1 1 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 8\r\nc=IN IP4 0.0.0.0\r\na=ice-ufrag:0123456789abcdef0123456789abcdef\r\na=ice-pwd:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\r\na=fingerprint:sha-256 AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99\r\na=setup:actpass\r\na=mid:0\r\na=sendrecv\r\na=rtcp-mux\r\na=rtpmap:8 PCMA/8000\r\n"
+        }
+      ]
+    }
+  },
+  "expect": {
+    "verdict": "accept"
+  }
+}

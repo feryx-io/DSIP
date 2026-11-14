@@ -1,0 +1,32 @@
+{
+  "vector": "messaging/voicemail-offer-video-call-accepts-video",
+  "format": 1,
+  "kind": "messaging",
+  "description": "A video attempt, unanswered, to a callee whose entry accepts video: a video voicemail.",
+  "spec_ref": [
+    "M§13.2"
+  ],
+  "context": {},
+  "input": {
+    "check": "voicemail-offer",
+    "voicemail": {
+      "max_duration_s": 180
+    },
+    "can_send": true,
+    "outcome": {
+      "type": "reject",
+      "reason": "user.no-answer"
+    },
+    "call_video": true,
+    "accepts": [
+      "text",
+      "audio",
+      "video"
+    ]
+  },
+  "expect": {
+    "offer": true,
+    "kind": "video",
+    "max_duration_s": 180
+  }
+}

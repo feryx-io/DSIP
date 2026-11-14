@@ -22,7 +22,8 @@ def sdp(sections=(("audio", "sendrecv", ("opus",)),), *, setup="actpass", ufrag=
     lines = ["v=0", "o=- 1 1 IN IP4 127.0.0.1", "s=-", "t=0 0", "a=group:BUNDLE " + " ".join(str(i) for i in range(len(sections) + len(extra_sections)))]
     if session_level_direction:
         lines.append(f"a={session_level_direction}")
-    pts = {"opus": ("111", "opus/48000/2"), "H264": ("96", "H264/90000"), "VP8": ("97", "VP8/90000"), "PCMU": ("0", "PCMU/8000")}
+    pts = {"opus": ("111", "opus/48000/2"), "H264": ("96", "H264/90000"), "VP8": ("97", "VP8/90000"), "PCMU": ("0", "PCMU/8000"),
+           "PCMA": ("8", "PCMA/8000"), "G722": ("9", "G722/8000"), "VP9": ("98", "VP9/90000")}
     i = 0
     for sec in list(sections) + list(extra_sections):
         kind, direction, encs = sec[0], sec[1], sec[2]
@@ -102,6 +103,28 @@ def vectors() -> list[dict]:
                                                        sdp((("audio", None, ("opus",)),), session_level_direction="recvonly"))}, accept()))
     out.append(bv("offer-codec-missing", "Descriptor offers opus but the SDP has no opus rtpmap.", ["B§2.1", "B§3.4"],
                   {"check": "offer", "payload": offer(s=sdp((("audio", "sendrecv", ("PCMU",)),)))}, reject("binding-codec-missing", "media.unsupported")))
+    # spec-gap 182: every row of B§3.4 is checked; a codec with no row is not
+    def video(codec):
+        return AUDIO + [{"type": "video", "direction": "sendrecv", "codecs": [{"id": codec}]}]
+
+    def audio(codec):
+        return [{"type": "audio", "direction": "sendrecv", "codecs": [{"id": codec}]}]
+
+    av = lambda enc: sdp((("audio", "sendrecv", ("opus",)), ("video", "sendrecv", (enc,))))
+    out.append(bv("offer-codec-vp9-valid", "VP9 has a B§3.4 row: a vp9 descriptor with a VP9/90000 rtpmap.", ["B§2.1", "B§3.4"],
+                  {"check": "offer", "payload": offer(video("codec:video/vp9"), av("VP9"))}, accept()))
+    out.append(bv("offer-codec-vp9-missing", "A vp9 descriptor whose m=video carries only VP8: the row's rtpmap is missing.",
+                  ["B§2.1", "B§3.4"], {"check": "offer", "payload": offer(video("codec:video/vp9"), av("VP8"))},
+                  reject("binding-codec-missing", "media.unsupported")))
+    out.append(bv("offer-codec-pcma-valid", "PCMA has a B§3.4 row: a pcma descriptor with a PCMA/8000 rtpmap.", ["B§2.1", "B§3.4"],
+                  {"check": "offer", "payload": offer(audio("codec:audio/pcma"), sdp((("audio", "sendrecv", ("PCMA",)),)))}, accept()))
+    out.append(bv("offer-codec-g722-missing", "A g722 descriptor whose m=audio carries only opus: the row's rtpmap is missing.",
+                  ["B§2.1", "B§3.4"], {"check": "offer", "payload": offer(audio("codec:audio/g722"))},
+                  reject("binding-codec-missing", "media.unsupported")))
+    out.append(bv("offer-codec-unmapped-unchecked", "A codec with no B§3.4 row (codec:audio/aac) has no mapping: §2.1 does "
+                  "not check it, and the offer stands on its other codecs.", ["B§2.1", "B§3.4"],
+                  {"check": "offer", "payload": offer([{"type": "audio", "direction": "sendrecv",
+                                                        "codecs": [{"id": "codec:audio/opus"}, {"id": "codec:audio/aac"}]}])}, accept()))
     out.append(bv("offer-extra-payload-types-ok", "The SDP may carry payload types DSIP does not describe.", ["B§2.1"],
                   {"check": "offer", "payload": offer(s=sdp((("audio", "sendrecv", ("opus", "PCMU")),)))}, accept()))
     out.append(bv("offer-data-channel-rejected", "An m=application section is outside Core v1.0.", ["B§2.1"],

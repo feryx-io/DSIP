@@ -992,7 +992,8 @@ def peer_timeline(inp: dict) -> dict:
 
 
 def voicemail_offer(inp: dict) -> dict:
-    """M§13.2: may the caller's client offer to record a voicemail after this attempt outcome?"""
+    """M§13.2: may the caller's client offer to record a voicemail after this attempt outcome, and of which kind:
+    `video` only when the attempt offered video (`call_video`) and the callee's entry `accepts` `video` (spec-gap 184)."""
     from .registry import REASONS
     vm = inp.get("voicemail")
     if not isinstance(vm, dict) or not inp.get("can_send"):
@@ -1005,7 +1006,8 @@ def voicemail_offer(inp: dict) -> dict:
         ok = t == "cancel" and reason == "session.timeout"
     if not ok:
         return {"offer": False}
-    res = {"offer": True}
+    video = inp.get("call_video") is True and "video" in (inp.get("accepts") or [])
+    res = {"offer": True, "kind": "video" if video else "audio"}
     if "max_duration_s" in vm:
         res["max_duration_s"] = vm["max_duration_s"]
     return res
