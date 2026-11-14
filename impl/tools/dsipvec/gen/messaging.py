@@ -1263,11 +1263,11 @@ def voicemail_offer_vectors():
     out = []
     VM = {"max_duration_s": 180}
 
-    def vo(vid, desc, outcome, expect, voicemail=VM, can_send=True):
-        inp = {"check": "voicemail-offer", "voicemail": voicemail, "can_send": can_send, "outcome": outcome}
+    def vo(vid, desc, outcome, expect, voicemail=VM, can_send=True, **video):
+        inp = {"check": "voicemail-offer", "voicemail": voicemail, "can_send": can_send, "outcome": outcome, **video}
         out.append(mv(f"voicemail-offer-{vid}", desc, ["M§13.2"], inp, expect))
 
-    yes = {"offer": True, "max_duration_s": 180}
+    yes = {"offer": True, "kind": "audio", "max_duration_s": 180}
     no = {"offer": False}
     vo("no-answer", "reject user.no-answer offers voicemail.", {"type": "reject", "reason": "user.no-answer"}, yes)
     vo("declined", "reject user.declined offers voicemail.", {"type": "reject", "reason": "user.declined"}, yes)
@@ -1292,7 +1292,22 @@ def voicemail_offer_vectors():
     vo("cannot-send", "No conversation and no authorization to create one: no offer.",
        {"type": "reject", "reason": "user.no-answer"}, no, can_send=False)
     vo("no-max-duration", "An advertisement without max_duration_s still offers, with no duration bound in the result.",
-       {"type": "reject", "reason": "user.no-answer"}, {"offer": True}, voicemail={})
+       {"type": "reject", "reason": "user.no-answer"}, {"offer": True, "kind": "audio"}, voicemail={})
+    # spec-gap 184: video only after an attempt that offered video, to a callee whose entry accepts it
+    no_answer = {"type": "reject", "reason": "user.no-answer"}
+    video = {"offer": True, "kind": "video", "max_duration_s": 180}
+    vo("video-call-accepts-video", "A video attempt, unanswered, to a callee whose entry accepts video: a video voicemail.",
+       no_answer, video, call_video=True, accepts=["text", "audio", "video"])
+    vo("video-call-accepts-no-video", "A video attempt to a callee whose entry does not list video: a voice voicemail.",
+       no_answer, yes, call_video=True, accepts=["text", "audio"])
+    vo("video-call-no-accepts", "A video attempt to a callee whose entry has no accepts: a voice voicemail (accepts is "
+       "what the owner's clients render; nothing listed, nothing promised).", no_answer, yes, call_video=True)
+    vo("audio-call-accepts-video", "An audio-only attempt to a callee that accepts video: still a voice voicemail.",
+       no_answer, yes, call_video=False, accepts=["audio", "video"])
+    vo("video-call-busy", "The video rule rides on the outcome rule: endpoint.busy after a video attempt, video accepted.",
+       {"type": "reject", "reason": "endpoint.busy"}, video, call_video=True, accepts=["video"])
+    vo("video-call-blocked", "No offer is no offer, video or not: user.blocked after a video attempt.",
+       {"type": "reject", "reason": "user.blocked"}, no, call_video=True, accepts=["video"])
     return out
 
 

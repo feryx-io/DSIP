@@ -18,14 +18,22 @@ import { messagingSchemas } from "./schemas.js";
 /** Spec: M§13.2 rule 3 — attempt outcomes after which a caller MAY offer voicemail. */
 const VOICEMAIL_REJECTS = ["user.no-answer", "user.declined", "endpoint.busy", "endpoint.unavailable"];
 
-/** Spec: M§13.2 */
-export function voicemailOffer(voicemail: JsonObject | null, canSend: boolean, outcome: { type: string; reason: string }): JsonObject {
+/** Spec: M§13.2 — and the voicemail's kind: video only after an attempt that offered video, to a callee that accepts it
+ * (spec-gap 184). */
+export function voicemailOffer(
+  voicemail: JsonObject | null,
+  canSend: boolean,
+  outcome: { type: string; reason: string },
+  callVideo = false,
+  accepts: readonly string[] = [],
+): JsonObject {
   const { type, reason } = outcome;
   const listed = type === "reject" ? VOICEMAIL_REJECTS.includes(reason) : type === "cancel" && reason === "session.timeout";
   // §15.1 fallback: an unregistered endpoint.* condition is endpoint state, like busy; any other category may be block-like
   const byCategory = type === "reject" && !isRegisteredReason(reason) && reason.startsWith("endpoint.");
   if (voicemail === null || !canSend || !(listed || byCategory)) return { offer: false };
-  return { offer: true, ...("max_duration_s" in voicemail ? { max_duration_s: voicemail["max_duration_s"]! } : {}) };
+  const kind = callVideo && accepts.includes("video") ? "video" : "audio";
+  return { offer: true, kind, ...("max_duration_s" in voicemail ? { max_duration_s: voicemail["max_duration_s"]! } : {}) };
 }
 
 // ---- M§13.3 call history

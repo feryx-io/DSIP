@@ -1,0 +1,27 @@
+{
+  "vector": "messaging/voicemail-offer-video-call-no-accepts",
+  "format": 1,
+  "kind": "messaging",
+  "description": "A video attempt to a callee whose entry has no accepts: a voice voicemail (accepts is what the owner's clients render; nothing listed, nothing promised).",
+  "spec_ref": [
+    "M§13.2"
+  ],
+  "context": {},
+  "input": {
+    "check": "voicemail-offer",
+    "voicemail": {
+      "max_duration_s": 180
+    },
+    "can_send": true,
+    "outcome": {
+      "type": "reject",
+      "reason": "user.no-answer"
+    },
+    "call_video": true
+  },
+  "expect": {
+    "offer": true,
+    "kind": "audio",
+    "max_duration_s": 180
+  }
+}

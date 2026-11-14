@@ -125,15 +125,26 @@ it a MUST so that a single-leg endpoint never needs the server-side DTLS path.)
 
 ### 3.4 Codec identifier mapping
 
-DSIP codec identifiers (Core §16.2) map to SDP as follows. Only Opus is mandatory (Core §17.1
-"at least one audio codec", §17.2).
+DSIP codec identifiers (Core §16.2) map to SDP as follows. Only Opus is mandatory for every endpoint
+(Core §17.1 "at least one audio codec", §17.2). An endpoint that offers or accepts video MUST
+support `codec:video/h264` in the constrained baseline profile (`profile-level-id=42e01f`,
+`packetization-mode=1`), and SHOULD support `codec:video/vp8`, so that any two endpoints doing
+video share a codec (spec-gap 181). The other codecs are optional.
 
 | DSIP `codecs[].id` | `a=rtpmap` | parameters |
 |---|---|---|
 | `codec:audio/opus` (REQUIRED) | `opus/48000/2` | `sample_rates` ⊆ {8000…48000} is advisory; `channels` → `stereo`/`sprop-stereo` fmtp; `ptime` 20 ms default |
-| `codec:video/h264` | `H264/90000` | `profiles[]` → `profile-level-id` (`baseline` = `42e01f`), `packetization-mode=1` |
-| `codec:video/vp8` | `VP8/90000` | — |
+| `codec:audio/pcmu` | `PCMU/8000` | — |
+| `codec:audio/pcma` | `PCMA/8000` | — |
+| `codec:audio/g722` | `G722/8000` | the clock rate is 8000 although the audio is 16 kHz (RFC 3551 §4.5.2) |
+| `codec:video/h264` (REQUIRED for video) | `H264/90000` | `profiles[]` → `profile-level-id` (`baseline` = `42e01f`), `packetization-mode=1` |
+| `codec:video/vp8` (RECOMMENDED for video) | `VP8/90000` | — |
+| `codec:video/vp9` | `VP9/90000` | — |
 | `codec:video/av1` | `AV1/90000` | — |
+
+Every row is a mapping that §2.1's consistency rule applies to: a descriptor listing one of these
+codecs needs the row's `a=rtpmap` in the same `m=` section (spec-gap 182). A codec with no row has
+no mapping in binding 1.0, and §2.1 does not check it.
 
 Payload-type numbers are SDP-local and never appear in DSIP descriptors.
 

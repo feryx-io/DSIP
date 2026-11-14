@@ -1,0 +1,28 @@
+{
+  "vector": "messaging/voicemail-offer-video-call-blocked",
+  "format": 1,
+  "kind": "messaging",
+  "description": "No offer is no offer, video or not: user.blocked after a video attempt.",
+  "spec_ref": [
+    "M§13.2"
+  ],
+  "context": {},
+  "input": {
+    "check": "voicemail-offer",
+    "voicemail": {
+      "max_duration_s": 180
+    },
+    "can_send": true,
+    "outcome": {
+      "type": "reject",
+      "reason": "user.blocked"
+    },
+    "call_video": true,
+    "accepts": [
+      "video"
+    ]
+  },
+  "expect": {
+    "offer": false
+  }
+}
