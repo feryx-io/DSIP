@@ -5404,3 +5404,87 @@ also offers a voice one. The `voicemail-offer` check gains inputs `call_video` a
 (`voicemail-offer-{video-call-accepts-video,video-call-accepts-no-video,video-call-no-accepts,
 audio-call-accepts-video,video-call-busy,video-call-blocked}`) pin the rule. Python, impl-ts and dsip-rs
 (`dsip_messaging::client::voicemail_offer`, and `dsip-wasm`'s `voicemail_offer` with an optional `call_video`) agree.
+
+## 185. M§4.1, M§5.7, M§14.3 — enrolment is open to anyone or to no one: an operator cannot admit only the identities it chose
+
+**Found (2026-11-15, reviewing the hosted mailboxes).** M§4.1 (spec-gap 115) lets a mailbox serve the identities its
+operator configures, and MAY let others enrol by binding "within a bound the operator sets". Those are the only two
+admissions: a list the operator writes ahead of time, or anyone. Identities cost nothing to mint (§19, M§14.3: "minting
+new identities is still cheap"), so an open mailbox's bound is a race. Anyone who knows its URI and DID (both public:
+they are in every served identity's document or hint, M§4.2) can enrol fresh `did:key` identities until the bound is
+reached. Each one gets its own quota (M§4.4), and the operator's real users are then refused `mailbox.not-served`.
+Nothing is read or forged: owner operations need the identity's own delegated device (M§4.3) and content is MLS. What is
+taken is storage and the operator's places.
+
+A hosted mailbox (one operator, many users who sign up, a person's app enrolling at first run) needs a third
+admission: **enrolment by an operator's say-so, given out of band** (a sign-up page, a purchase, an invitation from an
+organisation). The configured list cannot do it, because a `did:key` made in a browser or an app does not exist
+until first run (spec-gap 115). Per-identity rate limits (M§14.3) do not help, because each new identity is a new
+sender. Spec-gap 115 set aside option (c), "an operator-issued token presented in the first `mailbox-config`", as
+"deployment, can be added without touching the profile". That holds for a mailbox and the operator's own client, not
+for interoperation. A client cannot tell why it was refused (`mailbox.not-served` says only "no"), cannot know a code
+is wanted, and has no field to send one in. Every client and every mailbox would invent their own.
+
+The relay has the same shape (§13.6: open, private or closed, nothing between). It is not part of this gap, but a
+mechanism chosen here should be one the relay could take later.
+
+Choices:
+
+- **(a) An admission code.** An opaque string the operator issues out of band, presented once in `mailbox-config`
+  (new optional field `admission`) by a device of an identity the mailbox does not yet serve. A valid code enrols the
+  identity (counting against the bound, M§4.1) and is spent. Codes are single-use unless the operator issues them
+  otherwise (as §19.4's `contact_token`, whose rules this follows), and expire at the operator's discretion. A mailbox
+  that wants one refuses an owner operation from an identity it does not serve with a new reason
+  `mailbox.admission-required`, and a code that is unknown, spent or expired with `mailbox.admission-refused`. The
+  `hello` `mailbox` capabilities gain an informative `enrolment` ∈ {`open`, `admission`, `closed`}, so a client can ask
+  for a code before it tries. The operator ends an admitted enrolment as any other (release, idle expiry, by the
+  operator, spec-gap 164). A plan or quota the code stands for is the operator's.
+- **(b) An admission grant.** The mailbox's service identity signs a core `grant` (§19.4) to the identity, with a new
+  scope `dsip.mailbox` (registry `dsip-grant-scope`) and `valid_until` as the paid-for term, presented in
+  `mailbox-config`. It is bound to one DID, so it cannot be passed on, revocable with `grant-revocation`, and checkable by
+  any instance of the mailbox from the signature alone. But the issuer must know the DID before issuing, which
+  needs an issuance step of its own (a page that takes the DID with proof of control, or a code exchanged for the
+  grant, which is (a) again). Its expiry also duplicates what the operator can already do (end an enrolment at any
+  time, spec-gap 164).
+- **(c) No profile change: admission stays deployment.** Operators keep `serve_any` closed and add owners through
+  their own sign-up API (the configured list, written by a program). Each operator's client and mailbox are then one
+  product, a third-party client cannot sign up anywhere, and the open/closed race above remains for everyone else.
+- **(d) Proof of work, or cost, per enrolment.** It slows the race but does not stop it, and tells the operator nothing
+  about who it admitted.
+
+**Recommended: (a).** It is the smallest addition that interoperates: one optional field, two reason tokens, one
+informative capability. It follows a mechanism the core already has (`contact_token`, §19.4), and it works for an
+identity that does not yet exist when the code is issued, which (b) cannot do without becoming (a). Binding to a DID
+adds little. A code is spent at its first use, so one passed on admits one identity, the same as a person signing
+up twice. (b) can come later as a second kind of admission if an operator needs stateless checks across instances.
+
+**Proposed text and conformance, if (a):**
+
+- M§4.1 "Whom a mailbox serves": a mailbox MAY require an admission code for enrolment. The code is issued by its
+  operator out of band, presented in `mailbox-config` `admission` (M§5.7), and spent when it enrols an identity.
+  Codes are single-use unless the operator issues them otherwise, and expire at its discretion.
+- M§5.7: `admission` (string, 1–256 characters, opaque). Only an identity the mailbox does not serve sends it. A
+  served identity's `admission` is ignored and not spent. With `release: true` it is not applied (as for every other
+  field).
+- M§4.1 refusals: an owner operation from an identity the mailbox does not serve, at a mailbox that requires a code,
+  is refused `mailbox.admission-required`. One presenting a code that is unknown, spent or expired is refused
+  `mailbox.admission-refused`. A valid code with the bound reached is still `mailbox.not-served`, and the code is
+  not spent. M§15.5 needs no change, because only the identity's own device sees these answers.
+- M§4.3: the `mailbox` capability gains `enrolment` ∈ {`open`, `admission`, `closed`} (informative, §13.2).
+- M§14.3: admission codes are the operator's bound on enrolment, the abuse control for a mailbox open to sign-ups.
+- Registries: reason tokens `mailbox.admission-required`, `mailbox.admission-refused` (the `mailbox` category
+  exists). Messaging schema: `mailbox-config.admission`, and the capability's `enrolment`.
+- Vectors (the `enrolment-trace` family of spec-gap 130):
+  - `admission-required` refuses an unserved identity's `sync`;
+  - a valid code enrols it, and later owner operations are served;
+  - the same code from a second identity is `admission-refused` (spent);
+  - an expired code is `admission-refused`;
+  - a valid code at a full mailbox is `not-served`, and the code is still usable afterwards;
+  - a served identity's `admission` is ignored and not spent;
+  - `admission` with `release: true` is not applied;
+  - schema: `admission` empty, or over 256 characters, is rejected.
+  Then Python, impl-ts and dsip-rs (`dsip-mailbox`: an `admission` store, codes issued with
+  `dsip-mailbox admin admission new [--uses n] [--expires t]`), and dsip-app (asks for a code on
+  `mailbox.admission-required`, or takes one from a sign-up link).
+
+**Decision:** open.
