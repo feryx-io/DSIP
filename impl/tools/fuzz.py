@@ -152,15 +152,22 @@ def gen_move_arrival(r: random.Random):
 
 def gen_enrolment(r: random.Random):
     # spec-gap 130: owner operations, releases, operator releases (spec-gap 164) and hellos from configured, enrolled
-    # and unknown identities, and time across the idle bound, with the bound and expiry varied
+    # and unknown identities, and time across the idle bound, with the bound and expiry varied; at times admission codes
+    # (spec-gap 185): issued ones with uses and expiries, presented or not, valid, spent, expired or never issued
     ids = ["did:web:alice.example", "did:key:z6MkBob", "did:key:z6MkCarol", "did:key:z6MkDave", "did:key:z6MkErin"]
+    codes = ["code-a", "code-b", "code-c", "code-x"]  # code-x is never issued
     ev = []
+
+    def code(e):
+        if r.random() < 0.6:
+            e["admission"] = r.choice(codes)
+        return e
     for i in range(r.randint(2, 16)):
         x, who = r.random(), r.choice(ids)
         if x < 0.45:
-            ev.append({"owner_op": {"identity": who, "device": who + "#d", "id": f"op{i}"}})
+            ev.append({"owner_op": code({"identity": who, "device": who + "#d", "id": f"op{i}"})})
         elif x < 0.55:
-            ev.append({"release": {"identity": who, "device": who + "#d", "id": f"rel{i}"}})
+            ev.append({"release": code({"identity": who, "device": who + "#d", "id": f"rel{i}"})})
         elif x < 0.63:
             ev.append({"operator_release": {"identity": who}})
         elif x < 0.75:
@@ -174,6 +181,17 @@ def gen_enrolment(r: random.Random):
         ctx["expire_idle"] = r.choice([True, False])
     if r.random() < 0.7:
         ctx["mls_retention_s"] = r.choice([0, 10, 100])
+    if r.random() < 0.5:
+        issued = []
+        for c in codes[:3]:
+            if r.random() < 0.7:
+                d = {"code": c}
+                if r.random() < 0.5:
+                    d["uses"] = r.choice([0, 1, 2, 3])
+                if r.random() < 0.5:
+                    d["expires_at"] = NOW + r.choice([0, 1, 10, 11, 100])
+                issued.append(d)
+        ctx["admission"] = issued
     return "messaging", "enrolment-trace", ctx, ev
 
 def gen_hub(r: random.Random):

@@ -2791,6 +2791,11 @@ or rejects.
   implementations map (182). Messaging Profile 1.0: `video` content is `video/mp4` with H.264 and Opus, which a client
   rendering video MUST play, as WebM cannot carry H.264 (M§8.2, 183); a voicemail is video only after an attempt that
   offered video, to a callee whose entry accepts it (M§13.2, 184). No message, field or token changes.
+- Messaging Profile 1.0, M§4.1: a mailbox MAY enrol identities only by an admission code its operator gives out of
+  band, so an operator can admit those it chose rather than anyone, up to a bound that new identities race (spec-gap
+  185). The code rides in `mailbox-config` `admission`, sent only to a mailbox whose `hello` `mailbox` capability says
+  `enrolment: "admission"` (§11.4), and is spent by the enrolment; refusals `mailbox.admission-required` and
+  `mailbox.admission-refused` are registered. A 1.0 device never sends the field and is refused as it was.
 
 ---
 

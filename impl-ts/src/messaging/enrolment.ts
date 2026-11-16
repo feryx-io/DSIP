@@ -5,7 +5,8 @@
  *
  * Spec: M§4.1 ("Whom a mailbox serves", "When an enrolment ends"), M§4.4 (registered device,
  * `mls_retention_s`), M§5.7 (`release`), M§15.5, M§16 (`mailbox.not-served`,
- * `mailbox.not-enrolled`) — spec-gaps 115, 130, 164.
+ * `mailbox.not-enrolled`, `mailbox.admission-required`, `mailbox.admission-refused`) — spec-gaps
+ * 115, 130, 164; admission codes, spec-gap 185.
  */
 import type { Json, JsonObject } from "../did.js";
 import type { Machine, Step } from "./device.js";
@@ -25,6 +26,17 @@ export interface EnrolmentContext {
   expire_idle?: boolean;
   /** How long a device stays registered after its last verified `hello`. */
   mls_retention_s?: number;
+  /** The admission codes the operator issued; present, the mailbox enrols only by code. */
+  admission?: AdmissionCode[];
+}
+
+/** An admission code the operator issued. Spec: M§4.1 (spec-gap 185) */
+export interface AdmissionCode {
+  code: string;
+  /** How many enrolments it admits; 1 unless issued for more. */
+  uses?: number;
+  /** Valid while now is before it; absent, it does not expire. */
+  expires_at?: number;
 }
 
 /** One owner operation, or a release, from a device of an identity. */
@@ -32,6 +44,8 @@ interface OwnerOp {
   identity: string;
   device: string;
   id: string;
+  /** The code a `mailbox-config` presents (M§5.7 `admission`). */
+  admission?: string;
 }
 
 /**
@@ -54,6 +68,8 @@ export class Enrolment implements Machine {
   private readonly retention: number;
   /** Enrolled identity → time of its last verified `hello`, in enrolment order. */
   private readonly enrolled = new Map<string, number>();
+  /** Issued code → uses left and expiry, where the mailbox admits by code; else `null`. */
+  private readonly codes: Map<string, { uses: number; expiresAt?: number }> | null;
 
   constructor(ctx: EnrolmentContext) {
     this.now = ctx.now;
@@ -61,6 +77,9 @@ export class Enrolment implements Machine {
     this.bound = ctx.serve_any ?? 0;
     this.expireIdle = ctx.expire_idle ?? false;
     this.retention = ctx.mls_retention_s ?? MLS_RETENTION_S;
+    this.codes = ctx.admission
+      ? new Map(ctx.admission.map((c) => [c.code, { uses: c.uses ?? 1, expiresAt: c.expires_at }]))
+      : null;
   }
 
   step(e: JsonObject): Step {
@@ -68,12 +87,17 @@ export class Enrolment implements Machine {
     if ("owner_op" in e) {
       const op = e["owner_op"] as unknown as OwnerOp;
       if (!this.configured.has(op.identity) && !this.enrolled.has(op.identity)) {
-        if (this.enrolled.size < this.bound) {
-          this.enrolled.set(op.identity, this.now);
-          emit.push({ enrolled: { identity: op.identity } });
-        } else {
-          // Spec: M§4.1 — enrolment closed or the bound reached
+        if (this.enrolled.size >= this.bound) {
+          // Spec: M§4.1 — enrolment closed or the bound reached; checked before any code
           emit.push(this.error(op, "mailbox.not-served"));
+        } else {
+          const refusal = this.admit(op);
+          if (refusal) {
+            emit.push(this.error(op, refusal));
+          } else {
+            this.enrolled.set(op.identity, this.now);
+            emit.push({ enrolled: { identity: op.identity } });
+          }
         }
       }
     } else if ("release" in e) {
@@ -112,7 +136,27 @@ export class Enrolment implements Machine {
         }
       }
     }
-    return { emit, state: { enrolled: [...this.enrolled.keys()], free: this.bound - this.enrolled.size } };
+    const state: JsonObject = { enrolled: [...this.enrolled.keys()], free: this.bound - this.enrolled.size };
+    if (this.codes) state["codes"] = Object.fromEntries([...this.codes].map(([code, c]) => [code, c.uses]));
+    return { emit, state };
+  }
+
+  /**
+   * Where the mailbox admits by code, the refusal for an unserved identity's owner operation, or
+   * `null` and its code spent; elsewhere always `null`.
+   *
+   * Spec: M§4.1 "Admission codes" (spec-gap 185) — no code: `mailbox.admission-required`; one not
+   * issued, used up or past its expiry: `mailbox.admission-refused`; else one use is spent.
+   */
+  private admit(op: OwnerOp): string | null {
+    if (!this.codes) return null;
+    if (op.admission === undefined) return "mailbox.admission-required";
+    const c = this.codes.get(op.admission);
+    if (!c || c.uses === 0 || (c.expiresAt !== undefined && this.now >= c.expiresAt)) {
+      return "mailbox.admission-refused";
+    }
+    c.uses -= 1;
+    return null;
   }
 
   private error(op: OwnerOp, reason: string): Json {

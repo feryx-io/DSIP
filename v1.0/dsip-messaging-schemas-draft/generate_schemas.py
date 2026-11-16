@@ -241,6 +241,10 @@ MESSAGES = {
         "release": {"type": "boolean",
                     "description": "true ends the identity's enrolment at this mailbox (M§4.1, spec-gap 130); the "
                                    "other fields are not applied. false is the same as absent."},
+        "admission": {"type": "string", "minLength": 1, "maxLength": 256,
+                      "description": "An admission code from the mailbox's operator, which enrols an identity the mailbox "
+                                     "does not serve where it admits by code (M§4.1, spec-gap 185); sent only to a mailbox "
+                                     "whose hello says enrolment: admission."},
     }, ["subject"], "Owner device configures its own mailbox (M§5.7)."),
 }
 

@@ -1,0 +1,110 @@
+{
+  "vector": "messaging/enrolment-admission-served-identity-spends-nothing",
+  "format": 1,
+  "kind": "messaging",
+  "description": "A code from an identity the mailbox already serves, configured or enrolled, is ignored: nothing is spent, nothing is refused.",
+  "spec_ref": [
+    "M§4.1",
+    "M§16",
+    "M§5.7"
+  ],
+  "context": {
+    "component": "enrolment",
+    "now": 1760000000,
+    "configured": [
+      "did:web:alice.example"
+    ],
+    "serve_any": 2,
+    "admission": [
+      {
+        "code": "kq7J1mZt0pXy4bQe9vRn2A"
+      },
+      {
+        "code": "Hs8dW3cLu6TgPo1fYk5xNe",
+        "uses": 2
+      }
+    ]
+  },
+  "input": {
+    "check": "enrolment-trace",
+    "steps": [
+      {
+        "event": {
+          "owner_op": {
+            "identity": "did:web:alice.example",
+            "device": "did:key:z6Mkg9oRSg6APtrMJP8iekQm8yPc9ore3E4SJ5bF7Cw1qFCu",
+            "id": "01K742SG00ZEHCR0VAKABQQD5E",
+            "admission": "kq7J1mZt0pXy4bQe9vRn2A"
+          }
+        }
+      },
+      {
+        "event": {
+          "owner_op": {
+            "identity": "did:web:example.com:users:bob",
+            "device": "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn",
+            "id": "01K742SG000XRSQXX0G5A0V6ZR",
+            "admission": "Hs8dW3cLu6TgPo1fYk5xNe"
+          }
+        }
+      },
+      {
+        "event": {
+          "owner_op": {
+            "identity": "did:web:example.com:users:bob",
+            "device": "did:key:z6Mkj2BxyZQc1YnUdPNkRDAd1GP2ZigPPhh6ZfYwf5HRMrtJ",
+            "id": "01K742SG0079EZ1FXQV22G0CGW",
+            "admission": "kq7J1mZt0pXy4bQe9vRn2A"
+          }
+        }
+      }
+    ]
+  },
+  "expect": {
+    "steps": [
+      {
+        "emit": [],
+        "state": {
+          "enrolled": [],
+          "free": 2,
+          "codes": {
+            "kq7J1mZt0pXy4bQe9vRn2A": 1,
+            "Hs8dW3cLu6TgPo1fYk5xNe": 2
+          }
+        }
+      },
+      {
+        "emit": [
+          {
+            "enrolled": {
+              "identity": "did:web:example.com:users:bob"
+            }
+          }
+        ],
+        "state": {
+          "enrolled": [
+            "did:web:example.com:users:bob"
+          ],
+          "free": 1,
+          "codes": {
+            "kq7J1mZt0pXy4bQe9vRn2A": 1,
+            "Hs8dW3cLu6TgPo1fYk5xNe": 1
+          }
+        }
+      },
+      {
+        "emit": [],
+        "state": {
+          "enrolled": [
+            "did:web:example.com:users:bob"
+          ],
+          "free": 1,
+          "codes": {
+            "kq7J1mZt0pXy4bQe9vRn2A": 1,
+            "Hs8dW3cLu6TgPo1fYk5xNe": 1
+          }
+        }
+      }
+    ]
+  }
+}

@@ -166,6 +166,25 @@ enrol, because enrolment is closed or the bound is reached, is refused `mailbox.
 identity it does not serve. Only a device delegated by the identity with `dsip.messaging` sends one (M§4.3), so the
 answer tells nothing to anyone else (M§15.5).
 
+**Admission codes** (1.0, spec-gap 185). A mailbox MAY admit enrolment only by its operator's say-so: an *admission
+code*, an opaque string its operator gives out of band (a sign-up page, a purchase, an invitation), which a device of
+the identity presents in `mailbox-config` `admission` (M§5.7). Such a mailbox says so in its `hello` (`enrolment`,
+M§4.3), and decides an owner operation from an identity it does not serve in this order:
+
+1. the bound is reached: refused `mailbox.not-served`; a code it carries is neither checked nor spent;
+2. it carries no `admission` (a `sync` or `key-packages` never does): refused `mailbox.admission-required`;
+3. its code is not one the operator issued, has no use left, or is past its expiry: refused
+   `mailbox.admission-refused`;
+4. otherwise the identity enrols, against the bound as any enrolment, and the code has one use fewer.
+
+A code is single-use unless its operator issues it for more, and expires when its operator says; what it stands for (a
+plan, a quota) is the operator's. An `admission` from an identity the mailbox already serves is ignored and nothing is
+spent; in a `release` it is not applied. An admitted enrolment ends as any other (release, idle expiry, by the
+operator). A code is a bearer secret: whoever holds it can spend it. Its operator SHOULD make it unguessable (at least
+128 bits of randomness) and give it only to the one signing up, and the mailbox MUST rate-limit
+`mailbox.admission-refused` per binding (M§14.3). A device includes `admission` only for a mailbox whose `hello` says
+`enrolment: "admission"` (§11.4: a 1.0 mailbox refuses the field as a schema failure).
+
 **Moving to another mailbox** (v0.13, spec-gap 122). An identity moves by advertising another mailbox (M§4.2): its
 operator closes, or the old mailbox is gone for good, the case M§7.5 exists for. Nothing passes between the two
 mailboxes; the old one may no longer answer. On its first binding at the new mailbox, a device of the identity:
@@ -256,11 +275,15 @@ The mailbox's `hello` `capabilities` object carries a `mailbox` member:
   "max_blob_bytes": 104857600,
   "mls_retention_s": 2592000,
   "max_retention_s": 31536000,
-  "quota_bytes": 10737418240
+  "quota_bytes": 10737418240,
+  "enrolment": "admission"
 }
 ```
 
-Values are informative (§13.2 capability rule); enforcement is server-side.
+Values are informative (§13.2 capability rule); enforcement is server-side. `enrolment` (1.0, spec-gap 185) says how an
+identity the mailbox does not serve comes to be served (M§4.1): `open` (it enrols by its first owner operation while
+the bound has room), `admission` (only with an admission code), or `closed` (only identities its operator configures).
+Absent says nothing; a device then learns it from the refusal.
 
 ### M§4.4 Modes and retention
 
@@ -654,6 +677,10 @@ An owner device configures its own mailbox:
 - `release` (v0.16, spec-gap 130): `true` ends the identity's enrolment at this mailbox (M§4.1). The mailbox answers
   `accepted`, then deletes everything it holds for the identity; the other fields of the same message are not applied.
   A configured identity is refused `mailbox.not-enrolled`. `false` is the same as absent.
+- `admission` (1.0, spec-gap 185): an admission code (string, 1–256 characters, opaque), which enrols an identity the
+  mailbox does not serve at a mailbox that admits by code (M§4.1). Sent only to a mailbox whose `hello` says
+  `enrolment: "admission"` (M§4.3). Ignored, and nothing spent, for an identity already served; not applied with
+  `release`.
 - `revoked_delegations` (spec-gap 57) lists compact `delegation-revocation` records signed by the
   owner identity. The mailbox MUST verify each, keep it, refuse the revoked device from then on, drop
   it from the registered devices and discard its KeyPackages, and close its live binding.
@@ -1699,6 +1726,9 @@ surface.
 The §19.2 hooks apply to messaging as follows:
 
 - Mailboxes MUST rate-limit deposits and fetches per sending identity.
+- Identities cost nothing to mint, so a mailbox open to enrolment has its bound raced by new ones. Admission codes
+  (M§4.1, spec-gap 185) are an operator's way to admit only those it chose; a mailbox that takes them MUST rate-limit
+  `mailbox.admission-refused` per binding, so codes cannot be found by trying.
 - Hubs MUST rate-limit per member identity.
 - Quota is `mailbox.quota-exceeded` with `retry_after` where meaningful.
 - Blocking an identity locally ends rendering, and the client SHOULD revoke that identity's grants
@@ -1789,6 +1819,8 @@ re-sync, retry once, then surface the failure.
 | `mailbox.hub-unreachable` | The mailbox could not hand a forwarded deposit to the group's hub; the device keeps it pending (M§9.4, spec-gap 72) | error |
 | `mailbox.not-served` | An owner operation from an identity the mailbox does not serve and cannot enrol, or a `release` from one it does not serve (M§4.1, spec-gap 130) | error |
 | `mailbox.not-enrolled` | A `release` for an identity the operator configured; nothing is changed (M§4.1, spec-gap 130) | error |
+| `mailbox.admission-required` | An owner operation from an identity the mailbox does not serve, at a mailbox that enrols only by admission code, carrying none (M§4.1, spec-gap 185) | error |
+| `mailbox.admission-refused` | An admission code the operator did not issue, with no use left, or past its expiry; nothing is spent (M§4.1, spec-gap 185) | error |
 
 Existing tokens used unchanged: `policy.first-contact-required`, `policy.blocked`,
 `policy.rate-limited`, `transport.unknown-recipient`, `transport.envelope-too-large`.
@@ -2039,3 +2071,4 @@ Within 1.0:
 | 180 | M§5.4 | a page fits the cap as encoded, so it may hold fewer than `limit` items; a device sent an envelope over the cap syncs again with half the `limit`; `items-pages`, `resume-trace` `too_large` |
 | 183 | M§8.2, M§8.4 | `video` content is `video/mp4` (H.264 constrained baseline, Opus), which a client rendering video MUST play; `video/webm` MAY; a recording's bitrate fits `max_blob_bytes` |
 | 184 | M§13.2 | a voicemail is `video` only when the attempt offered video and the callee's entry `accepts` `video`; else `audio`; `voicemail-offer` `kind` |
+| 185 | M§4.1, M§4.3, M§5.7, M§14.3, M§16 | a mailbox MAY enrol only by an operator's admission code, in `mailbox-config` `admission`, sent only where `hello` says `enrolment: "admission"`; refusals `mailbox.admission-required`, `mailbox.admission-refused`; `enrolment-trace` `admission` |
