@@ -3526,6 +3526,93 @@ def enrolment_vectors():
                          ({"advance": 1}, [released(BOB, "idle")], snap(free=2)),
                      ]))
 
+    # --- admission codes (1.0, spec-gap 185)
+    arefs = refs + ["M§16"]
+    CODE_1, CODE_2, CODE_3 = "kq7J1mZt0pXy4bQe9vRn2A", "Hs8dW3cLu6TgPo1fYk5xNe", "Zr4Va9EmQ2wJb7tCy0iLhU"
+
+    def aop(identity, device, label, code=None):
+        ev = op(identity, device, label)
+        if code is not None:
+            ev["owner_op"]["admission"] = code
+        return ev
+
+    def asnap(*enrolled, free, codes):
+        return {"enrolled": list(enrolled), "free": free, "codes": codes}
+
+    actx = {"component": "enrolment", "now": NOW, "configured": [ALICE], "serve_any": 2,
+            "admission": [{"code": CODE_1}, {"code": CODE_2, "uses": 2}]}
+    out.append(trace("enrolment-admission-required-then-enrols",
+                     "A mailbox that enrols only by admission code refuses an owner operation from an identity it does "
+                     "not serve and that carries no code (a sync) mailbox.admission-required. Its mailbox-config with a "
+                     "code the operator issued enrols it and spends the code; its later owner operations are served. A "
+                     "configured identity needs no code.", arefs, T, actx, [
+                         (aop(BOB, BPH, "a1"), refused(BPH, "a1", "mailbox.admission-required"),
+                          asnap(free=2, codes={CODE_1: 1, CODE_2: 2})),
+                         (aop(BOB, BPH, "a2", CODE_1), enrolled(BOB), asnap(BOB, free=1, codes={CODE_1: 0, CODE_2: 2})),
+                         (aop(BOB, BLA, "a3"), [], asnap(BOB, free=1, codes={CODE_1: 0, CODE_2: 2})),
+                         (aop(ALICE, APH, "a4"), [], asnap(BOB, free=1, codes={CODE_1: 0, CODE_2: 2})),
+                     ]))
+    out.append(trace("enrolment-admission-spent-unknown-refused",
+                     "A code is single-use unless issued for more: the same code from another identity is refused "
+                     "mailbox.admission-refused, as is a code the operator never issued. A code issued for two uses "
+                     "enrols two identities.", arefs, T, {**actx, "serve_any": 3}, [
+                         (aop(BOB, BPH, "s1", CODE_1), enrolled(BOB), asnap(BOB, free=2, codes={CODE_1: 0, CODE_2: 2})),
+                         (aop(CAROL, CPH, "s2", CODE_1), refused(CPH, "s2", "mailbox.admission-refused"),
+                          asnap(BOB, free=2, codes={CODE_1: 0, CODE_2: 2})),
+                         (aop(CAROL, CPH, "s3", CODE_3), refused(CPH, "s3", "mailbox.admission-refused"),
+                          asnap(BOB, free=2, codes={CODE_1: 0, CODE_2: 2})),
+                         (aop(CAROL, CPH, "s4", CODE_2), enrolled(CAROL),
+                          asnap(BOB, CAROL, free=1, codes={CODE_1: 0, CODE_2: 1})),
+                         (aop(MALLORY, MPH, "s5", CODE_2), enrolled(MALLORY),
+                          asnap(BOB, CAROL, MALLORY, free=0, codes={CODE_1: 0, CODE_2: 0})),
+                     ]))
+    out.append(trace("enrolment-admission-expired-refused",
+                     "A code is valid until its expiry: one second before, it enrols; at its expires_at, it is refused "
+                     "mailbox.admission-refused, unspent.", arefs, T,
+                     {**actx, "admission": [{"code": CODE_1, "expires_at": NOW + 10}, {"code": CODE_2, "expires_at": NOW + 10}]}, [
+                         ({"advance": 9}, [], asnap(free=2, codes={CODE_1: 1, CODE_2: 1})),
+                         (aop(BOB, BPH, "x1", CODE_1), enrolled(BOB), asnap(BOB, free=1, codes={CODE_1: 0, CODE_2: 1})),
+                         ({"advance": 1}, [], asnap(BOB, free=1, codes={CODE_1: 0, CODE_2: 1})),
+                         (aop(CAROL, CPH, "x2", CODE_2), refused(CPH, "x2", "mailbox.admission-refused"),
+                          asnap(BOB, free=1, codes={CODE_1: 0, CODE_2: 1})),
+                     ]))
+    out.append(trace("enrolment-admission-bound-first",
+                     "The bound is checked first: at a full mailbox an owner operation is refused mailbox.not-served "
+                     "whether or not it carries a code, and a valid code is not spent; once a place is free, the same "
+                     "code enrols.", arefs + ["M§5.7"], T, {**actx, "serve_any": 1}, [
+                         (aop(BOB, BPH, "b1", CODE_1), enrolled(BOB), asnap(BOB, free=0, codes={CODE_1: 0, CODE_2: 2})),
+                         (aop(CAROL, CPH, "b2"), refused(CPH, "b2", "mailbox.not-served"),
+                          asnap(BOB, free=0, codes={CODE_1: 0, CODE_2: 2})),
+                         (aop(CAROL, CPH, "b3", CODE_2), refused(CPH, "b3", "mailbox.not-served"),
+                          asnap(BOB, free=0, codes={CODE_1: 0, CODE_2: 2})),
+                         (release(BOB, BPH, "b4"), [{"accepted": {"to": BPH, "in_reply_to": uid("b4")}}, released(BOB, "owner")],
+                          asnap(free=1, codes={CODE_1: 0, CODE_2: 2})),
+                         (aop(CAROL, CPH, "b5", CODE_2), enrolled(CAROL), asnap(CAROL, free=0, codes={CODE_1: 0, CODE_2: 1})),
+                     ]))
+    out.append(trace("enrolment-admission-served-identity-spends-nothing",
+                     "A code from an identity the mailbox already serves, configured or enrolled, is ignored: nothing is "
+                     "spent, nothing is refused.", arefs + ["M§5.7"], T, actx, [
+                         (aop(ALICE, APH, "v1", CODE_1), [], asnap(free=2, codes={CODE_1: 1, CODE_2: 2})),
+                         (aop(BOB, BPH, "v2", CODE_2), enrolled(BOB), asnap(BOB, free=1, codes={CODE_1: 1, CODE_2: 1})),
+                         (aop(BOB, BLA, "v3", CODE_1), [], asnap(BOB, free=1, codes={CODE_1: 1, CODE_2: 1})),
+                     ]))
+
+    def arelease(identity, device, label, code):
+        ev = release(identity, device, label)
+        ev["release"]["admission"] = code
+        return ev
+    out.append(trace("enrolment-admission-not-applied-with-release",
+                     "In a release the code is not applied: an identity the mailbox does not serve is refused "
+                     "mailbox.not-served and nothing is spent (a release never enrols); an enrolled one is released and "
+                     "nothing is spent.", arefs + ["M§5.7"], T, actx, [
+                         (arelease(BOB, BPH, "n1", CODE_1), refused(BPH, "n1", "mailbox.not-served"),
+                          asnap(free=2, codes={CODE_1: 1, CODE_2: 2})),
+                         (aop(CAROL, CPH, "n2", CODE_2), enrolled(CAROL), asnap(CAROL, free=1, codes={CODE_1: 1, CODE_2: 1})),
+                         (arelease(CAROL, CPH, "n3", CODE_1),
+                          [{"accepted": {"to": CPH, "in_reply_to": uid("n3")}}, released(CAROL, "owner")],
+                          asnap(free=2, codes={CODE_1: 1, CODE_2: 1})),
+                     ]))
+
     # --- the wire field (M§5.7)
     def m(vid, desc, payload, expect):
         out.append(mv(vid, desc, ["M§5.7", "M§4.1"], {"check": "message", "payload": payload}, expect))
@@ -3533,6 +3620,14 @@ def enrolment_vectors():
       msg("mailbox-config", "cfgrel", BPH, MBX_B, subject=BOB, release=True), accept())
     m("mailbox-config-release-not-boolean-refused", "release is a boolean.",
       msg("mailbox-config", "cfgrel2", BPH, MBX_B, subject=BOB, release="yes"), reject("schema-invalid"))
+    m("mailbox-config-admission-valid", "A device presents its operator's admission code (1.0, spec-gap 185).",
+      msg("mailbox-config", "cfgadm", BPH, MBX_B, subject=BOB, admission="kq7J1mZt0pXy4bQe9vRn2A"), accept())
+    m("mailbox-config-admission-empty-refused", "An admission code has at least one character.",
+      msg("mailbox-config", "cfgadm2", BPH, MBX_B, subject=BOB, admission=""), reject("schema-invalid"))
+    m("mailbox-config-admission-too-long-refused", "An admission code has at most 256 characters.",
+      msg("mailbox-config", "cfgadm3", BPH, MBX_B, subject=BOB, admission="a" * 257), reject("schema-invalid"))
+    m("mailbox-config-admission-not-string-refused", "An admission code is a string.",
+      msg("mailbox-config", "cfgadm4", BPH, MBX_B, subject=BOB, admission=12345), reject("schema-invalid"))
     return out
 
 

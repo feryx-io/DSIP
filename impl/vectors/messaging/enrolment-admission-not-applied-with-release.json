@@ -1,0 +1,129 @@
+{
+  "vector": "messaging/enrolment-admission-not-applied-with-release",
+  "format": 1,
+  "kind": "messaging",
+  "description": "In a release the code is not applied: an identity the mailbox does not serve is refused mailbox.not-served and nothing is spent (a release never enrols); an enrolled one is released and nothing is spent.",
+  "spec_ref": [
+    "M§4.1",
+    "M§16",
+    "M§5.7"
+  ],
+  "context": {
+    "component": "enrolment",
+    "now": 1760000000,
+    "configured": [
+      "did:web:alice.example"
+    ],
+    "serve_any": 2,
+    "admission": [
+      {
+        "code": "kq7J1mZt0pXy4bQe9vRn2A"
+      },
+      {
+        "code": "Hs8dW3cLu6TgPo1fYk5xNe",
+        "uses": 2
+      }
+    ]
+  },
+  "input": {
+    "check": "enrolment-trace",
+    "steps": [
+      {
+        "event": {
+          "release": {
+            "identity": "did:web:example.com:users:bob",
+            "device": "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn",
+            "id": "01K742SG00WJPA7X0B8PHQRVQD",
+            "admission": "kq7J1mZt0pXy4bQe9vRn2A"
+          }
+        }
+      },
+      {
+        "event": {
+          "owner_op": {
+            "identity": "did:web:carol.example",
+            "device": "did:key:z6Mks5FEYf8Z7WygGqzyejjnf3VHupKMYBv4bKgEfW52wqmL",
+            "id": "01K742SG005WTHMC7NRWTESR9A",
+            "admission": "Hs8dW3cLu6TgPo1fYk5xNe"
+          }
+        }
+      },
+      {
+        "event": {
+          "release": {
+            "identity": "did:web:carol.example",
+            "device": "did:key:z6Mks5FEYf8Z7WygGqzyejjnf3VHupKMYBv4bKgEfW52wqmL",
+            "id": "01K742SG00R2SR9DJQ116DSEMN",
+            "admission": "kq7J1mZt0pXy4bQe9vRn2A"
+          }
+        }
+      }
+    ]
+  },
+  "expect": {
+    "steps": [
+      {
+        "emit": [
+          {
+            "error": {
+              "to": "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn",
+              "in_reply_to": "01K742SG00WJPA7X0B8PHQRVQD",
+              "reason": "mailbox.not-served"
+            }
+          }
+        ],
+        "state": {
+          "enrolled": [],
+          "free": 2,
+          "codes": {
+            "kq7J1mZt0pXy4bQe9vRn2A": 1,
+            "Hs8dW3cLu6TgPo1fYk5xNe": 2
+          }
+        }
+      },
+      {
+        "emit": [
+          {
+            "enrolled": {
+              "identity": "did:web:carol.example"
+            }
+          }
+        ],
+        "state": {
+          "enrolled": [
+            "did:web:carol.example"
+          ],
+          "free": 1,
+          "codes": {
+            "kq7J1mZt0pXy4bQe9vRn2A": 1,
+            "Hs8dW3cLu6TgPo1fYk5xNe": 1
+          }
+        }
+      },
+      {
+        "emit": [
+          {
+            "accepted": {
+              "to": "did:key:z6Mks5FEYf8Z7WygGqzyejjnf3VHupKMYBv4bKgEfW52wqmL",
+              "in_reply_to": "01K742SG00R2SR9DJQ116DSEMN"
+            }
+          },
+          {
+            "released": {
+              "identity": "did:web:carol.example",
+              "cause": "owner"
+            }
+          }
+        ],
+        "state": {
+          "enrolled": [],
+          "free": 2,
+          "codes": {
+            "kq7J1mZt0pXy4bQe9vRn2A": 1,
+            "Hs8dW3cLu6TgPo1fYk5xNe": 1
+          }
+        }
+      }
+    ]
+  }
+}

@@ -5487,5 +5487,14 @@ up twice. (b) can come later as a second kind of admission if an operator needs 
   `dsip-mailbox admin admission new [--uses n] [--expires t]`), and dsip-app (asks for a code on
   `mailbox.admission-required`, or takes one from a sign-up link).
 
-**Decided (2026-11-15, user): (a).** The spec text, registry entries, schema and vectors as proposed above follow
-in their own change, then impl-ts, dsip-rs and dsip-app.
+**Decided (2026-11-15, user): (a).** In place:
+- M§4.1 "Admission codes": the order is the bound first (`mailbox.not-served`, no code looked at), then no code
+  (`mailbox.admission-required`), then a code not issued, used up or expired (`mailbox.admission-refused`).
+- M§4.3: the capability `enrolment` ∈ {`open`, `admission`, `closed`}.
+- M§5.7: `admission` (1–256 characters), sent only where the `hello` says `admission` (§11.4).
+- M§14.3: refusals are rate-limited per binding. M§16 registers the two tokens; Messaging M-B and Core A.16 record it.
+- Vectors: `enrolment-trace` takes `context.admission` (`[{code, uses?, expires_at?}]`), `admission` on `owner_op` and
+  `release`, and `codes` in the state. The six `enrolment-admission-*` traces, and four `mailbox-config-admission-*`
+  schema vectors. `fuzz.py` `enrolment` presents codes.
+- Python, impl-ts and dsip-rs (`dsip_messaging::enrolment`; `dsip-mailbox --admission`, `admin admission-new`,
+  `admissions`, `admission-revoke`) agree.

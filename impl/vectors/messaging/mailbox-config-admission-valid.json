@@ -1,0 +1,36 @@
+{
+  "vector": "messaging/mailbox-config-admission-valid",
+  "format": 1,
+  "kind": "messaging",
+  "description": "A device presents its operator's admission code (1.0, spec-gap 185).",
+  "spec_ref": [
+    "M§5.7",
+    "M§4.1"
+  ],
+  "context": {},
+  "input": {
+    "check": "message",
+    "payload": {
+      "dsip": {
+        "core": "1.0",
+        "min_core": "1.0",
+        "profiles": [
+          "messaging/1.0"
+        ],
+        "extensions": [],
+        "critical": []
+      },
+      "type": "mailbox-config",
+      "id": "01K742SG005JMBX6XW4MHFHSBH",
+      "from": "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn",
+      "to": "did:web:mbx.bob.example",
+      "subject": "did:web:example.com:users:bob",
+      "admission": "kq7J1mZt0pXy4bQe9vRn2A",
+      "issued_at": 1760000000,
+      "expires_at": 1760000030
+    }
+  },
+  "expect": {
+    "verdict": "accept"
+  }
+}

@@ -69,6 +69,8 @@ const REASONS: Record<string, string[]> = {
   "mailbox.hub-unreachable": ["error"], // M§16 (spec-gap 72); not yet in the core §15.4 table
   "mailbox.not-served": ["error"], // M§16 (v0.16, spec-gap 130): unserved and cannot enrol, or a release from one not served
   "mailbox.not-enrolled": ["error"], // M§16 (v0.16, spec-gap 130): a release for a configured identity
+  "mailbox.admission-required": ["error"], // M§16 (1.0, spec-gap 185): no admission code where one is required
+  "mailbox.admission-refused": ["error"], // M§16 (1.0, spec-gap 185): a code not issued, used up or expired
   "presence.signer-mismatch": ["error"], // P§9 (v0.17, spec-gap 134); not in the core §15.4 table
   "presence.sealed-invalid": ["error"], // P§9, P§12.2 (v0.17, spec-gaps 152, 157)
   "presence.lifetime": ["error"], // P§9

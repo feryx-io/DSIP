@@ -1412,6 +1412,11 @@ class Enrolment:
     `mailbox.not-enrolled`), by its operator (spec-gap 164) or, when the operator chose idle expiry, once no device of
     the identity has completed a verified `hello` within `mls_retention_s` (M§4.4: it has no registered device).
     `released` tells the host to delete everything it holds for the identity and close its bindings.
+
+    With `admission` in the context the mailbox enrols only by admission code (spec-gap 185): past the bound check, an
+    owner operation without `admission` is refused `mailbox.admission-required`, one whose code was not issued, has no
+    use left or is expired (now at or after its `expires_at`) `mailbox.admission-refused`; a valid one enrols and spends
+    a use. A served identity's code, and a release's, are not looked at.
     """
 
     def __init__(self, ctx: dict):
@@ -1421,6 +1426,9 @@ class Enrolment:
         self.expire_idle = ctx.get("expire_idle", False)
         self.retention = ctx.get("mls_retention_s", MLS_RETENTION_S)
         self.enrolled: dict[str, int] = {}  # identity → last verified hello, in enrolment order
+        # code → {uses, expires_at?}: present only where the mailbox admits by code (spec-gap 185)
+        self.codes = None if "admission" not in ctx else {
+            c["code"]: {"uses": c.get("uses", 1), "expires_at": c.get("expires_at")} for c in ctx["admission"]}
 
     def step(self, ev: dict) -> list:
         (name, e), = ev.items()
@@ -1435,7 +1443,15 @@ class Enrolment:
         if who in self.configured or who in self.enrolled:
             return []
         if len(self.enrolled) >= self.serve_any:
-            return self._error(e, "mailbox.not-served")  # M§4.1 (spec-gap 130)
+            return self._error(e, "mailbox.not-served")  # M§4.1 (spec-gap 130): the bound first; no code is looked at
+        if self.codes is not None:  # M§4.1 (spec-gap 185)
+            code = e.get("admission")
+            if code is None:
+                return self._error(e, "mailbox.admission-required")
+            c = self.codes.get(code)
+            if c is None or c["uses"] == 0 or (c["expires_at"] is not None and self.now >= c["expires_at"]):
+                return self._error(e, "mailbox.admission-refused")
+            c["uses"] -= 1
         self.enrolled[who] = self.now  # enrolment happens on a verified binding: it counts as a hello
         return [{"enrolled": {"identity": who}}]
 
@@ -1473,7 +1489,10 @@ class Enrolment:
         return [{"released": {"identity": who, "cause": "idle"}} for who in idle]
 
     def snapshot(self) -> dict:
-        return {"enrolled": list(self.enrolled), "free": self.serve_any - len(self.enrolled)}
+        snap = {"enrolled": list(self.enrolled), "free": self.serve_any - len(self.enrolled)}
+        if self.codes is not None:
+            snap["codes"] = {code: c["uses"] for code, c in self.codes.items()}
+        return snap
 
 
 class GapTracker:
