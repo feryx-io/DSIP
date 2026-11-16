@@ -5487,4 +5487,5 @@ up twice. (b) can come later as a second kind of admission if an operator needs 
   `dsip-mailbox admin admission new [--uses n] [--expires t]`), and dsip-app (asks for a code on
   `mailbox.admission-required`, or takes one from a sign-up link).
 
-**Decision:** open.
+**Decided (2026-11-15, user): (a).** The spec text, registry entries, schema and vectors as proposed above follow
+in their own change, then impl-ts, dsip-rs and dsip-app.
