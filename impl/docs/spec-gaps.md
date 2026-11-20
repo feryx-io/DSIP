@@ -5533,39 +5533,48 @@ Choices (carriage):
 
 **Recommended: (a)**, with (b) left open as a later addition for updates inside an existing conversation.
 
-**Decided (2026-11-20, user): (a), on the introduction and on the grant.** Not yet in the text. The rules to write:
+**Decided (2026-11-20, user): (a), on the introduction and on the grant, sent only where it is known to be
+supported.** §11.4 settles how: the schemas are closed, so a 1.0 receiver refuses a grant with an unknown member, a
+sealed plaintext that is not exactly a purpose, and an introduction over 4,096 bytes, and an introduction is never
+answered, so the sender would not learn of it. The user chose to keep the card on the two messages and gate it,
+over a separate message type that 1.0 would drop harmlessly and over breaking compatibility.
 
-1. **Opt-in.** A client MUST NOT send a card unless its user turned sharing on; the default is off. Two standing
-   choices: with introductions sent, and with grants given.
-2. **Size.** An introduction carrying `sealed` MAY be up to **16,384** encoded bytes; one without stays at 4,096.
-   (A holder cannot see whether a sealed introduction carries a card, so the larger cap is `sealed`'s.) Relays hold at
-   most 16 per inbox, so the bound per recipient stays small. `picture.data` is at most 8,192 bytes before encoding
-   (M§8.2's inline thumbnail bound), `image/jpeg` or `image/png`; `display_name` at most 256 characters, as in
-   `identity`.
-3. **A claim, attributed.** The receiver renders the card as the sending identity's own claim, labelled unverified,
-   beside the identity itself: on an introduction, in the requests surface only. A logo or brand is shown as verified
-   only by §18.2's rule (a credential from a trusted issuer), never because a card carries it. A client MAY let its
-   user hide pictures on requests from identities it does not know.
-4. **The receiver's own choice wins.** A picture the receiving user chose for a contact takes precedence over a card.
-5. **Replacement and removal.** A later grant's card replaces the earlier one; a card without `picture` removes the
-   picture; a later grant without `profile` leaves what the receiver holds. An introduction's card is kept with the
-   request, and with the contact once the request is granted.
-6. **After revocation or expiry** of the grant, the receiver SHOULD stop showing the grantor's card. A courtesy, not
-   something the sender can enforce.
-7. **A card that fails** (cannot be unsealed, over a limit, a type not listed) is ignored; it never invalidates the
-   introduction or the grant that carries it.
+In the text (core §19.4 "Profile cards", §18.2, §11.4, A.16; M§14.1), as the extension `profile-card/1.0`:
+
+1. **The card**: `display_name` (1 to 256 characters) and `picture` (`image/jpeg` or `image/png`, `data` unpadded
+   base64url of at most **4,096** bytes), each optional; unknown card members are ignored. The picture bound is 4,096
+   and not the 8,192 first proposed: the card is encoded three times over (plaintext, ciphertext, envelope), so 4,096
+   bytes of picture are about 9,700 bytes of envelope, and 8,192 would not fit under the cap.
+2. **Carriage**: `profile` in the `sealed` plaintext of an introduction, beside `purpose`; a new sealed member
+   `profile` of a grant (`info` `dsip profile card v1`, AAD `id ‖ 0x00 ‖ from ‖ 0x00 ‖ to`, plaintext
+   `{"profile": {…}}`). Both list the extension in `dsip.extensions`.
+3. **Size**: an introduction that carries `sealed` and lists the extension may be up to **16,384** encoded bytes;
+   any other stays at 4,096.
+4. **Known support**: the receiver listed the extension in `dsip.extensions` of an introduction or grant it sent;
+   or its DID document lists it in `dsipExtensions`; or it said so out of band with the address it gave (the
+   deployment's link or QR code). §11.4's list of sources gains "a means the extension or profile itself defines"
+   for the last. A larger introduction goes only through a holder whose `hello` advertises
+   `introduction_max_bytes`.
+5. **Opt-in**, off by default; with introductions sent and with grants given are separate choices.
+6. **A claim, attributed**: shown labelled unverified, an introduction's card in the requests surface only; the
+   receiving user's own picture for a contact wins; a client MAY let its user hide pictures on requests.
+7. **Replacement and removal**: a later grant's card replaces; a card without `picture` removes the picture; a grant
+   without `profile` leaves what is held. After revocation or expiry the receiver SHOULD stop showing it.
+8. **A card that fails** is ignored and never invalidates the message that carries it.
 
 Open:
 
-- **Compatibility.** The message schemas refuse unknown members, so an implementation older than this refuses a
-  grant carrying `profile`, and refuses an introduction over 4,096 bytes. A sender cannot tell which its peer is. To
-  settle with the text: land it in place under §11.4 as 185 did, or have the sender learn support first (a
-  capability in the DID document's service entry or the peer's `hello`).
+- **`did:key` identities** have no document, so an introducer knows a `did:key` recipient supports cards only from
+  an earlier message or out of band. Advertising the extension in a DHT reachability hint would close that, but the
+  hint schema is closed too, so it is its own change to the hints profile.
 - Whether a card may also travel as Messaging content ((b)) between identities that already share a conversation.
 - A recorded video greeting on an introduction (asked 2026-11-20): too large for any inline cap, so it would be an
   encrypted blob by reference. Its own gap if wanted.
+- Not yet done: the `grant` schema's `profile`, the semantic size rule, vectors, impl-ts, dsip-rs, the app.
 
-Vectors when adopted: an introduction with `sealed` between 4,097 and 16,384 bytes (accepted) and one over 16,384
-(`introduction-too-large`); one without `sealed` over 4,096 (refused as now); a grant with a valid `profile`; cards
-over the picture limit, of an unlisted type, sealed to another identity, or bound to another grant id (each ignored,
-the carrier accepted); a following grant that replaces the card, one that removes the picture, one with no `profile`.
+Vectors to write: an introduction with `sealed` and the extension between 4,097 and 16,384 bytes (accepted), one
+over 16,384, one with `sealed` and no extension over 4,096, and one without `sealed` over 4,096 (each
+`introduction-too-large`); the same at a mailbox deposit; a sealed introduction that opens to a purpose and a card;
+a grant with a valid `profile`; cards over the picture limit, of an unlisted type, with a name too long, not an
+object (each ignored, the carrier accepted); a grant `profile` sealed to another identity or bound to another grant
+id (ignored); a card with an unknown member (taken, the member dropped).
