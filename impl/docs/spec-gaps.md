@@ -5498,3 +5498,74 @@ up twice. (b) can come later as a second kind of admission if an operator needs 
   schema vectors. `fuzz.py` `enrolment` presents codes.
 - Python, impl-ts and dsip-rs (`dsip_messaging::enrolment`; `dsip-mailbox --admission`, `admin admission-new`,
   `admissions`, `admission-revoke`) agree.
+
+## 186. §19.4, §18.2 — an identity cannot give the party it introduces itself to, or accepts, its name and picture
+
+**Found (2026-11-20).** A client can show a picture for a contact only when its own user picked one. §18.2 says
+avatars and display names are claims, and an `introduction` carries the introducer's `identity.display_name`, but
+nothing carries a picture, and nothing carries either from the accepting side. A user sending an introduction cannot
+show the recipient who is asking; a user accepting one cannot say what to show for them.
+
+What an answer has to meet:
+
+- The picture is not public: not in the DID document, and not readable by a relay or mailbox holding the message.
+- A picture on a request is persuasive, so it is an impersonation tool: it is rendered as the sender's claim, never as
+  verified.
+- The accepting side may have no right to message the introducer (M§14.2 admits by a grant from the mailbox's owner),
+  so Messaging content cannot be the only carriage.
+- The introduction cap (4,096 bytes) is deliberately small; a sealed, encoded picture does not fit under it.
+
+Choices (carriage):
+
+- **(a) Sealed on the first-contact messages themselves.** A profile card, `{display_name, picture?}` with
+  `picture` = `{content_type, data}`, travels sealed with HPKE to the other identity's key agreement key. On an
+  `introduction` it is a member `profile` of the `sealed` plaintext, beside `purpose` (so an introduction carrying a
+  card seals its purpose too, and its schema does not change). On a `grant` it is a new member `profile`:
+  `{alg, enc, ct}`, bound to the grant's `id`, `from` and `to` as `presence_keys` is (P§12.3). A changed card is sent
+  with a grant that follows a grant (spec-gap 150).
+- **(b) Messaging content**: a `contact` content object with a new purpose `profile` in the pair's conversation. End
+  to end by MLS and easy to update, but nothing before consent, and the accepting side may not be allowed to create
+  the conversation.
+- **(c) A new sealed message type** delivered like a grant: both directions without Messaging, at the cost of a type,
+  its routing, holding and rate limits.
+- **(d) The DID document, or a link to fetch.** Public, or tells the sender the recipient's address and that it
+  looked. Rejected.
+
+**Recommended: (a)**, with (b) left open as a later addition for updates inside an existing conversation.
+
+**Decided (2026-11-20, user): (a), on the introduction and on the grant.** Not yet in the text. The rules to write:
+
+1. **Opt-in.** A client MUST NOT send a card unless its user turned sharing on; the default is off. Two standing
+   choices: with introductions sent, and with grants given.
+2. **Size.** An introduction carrying `sealed` MAY be up to **16,384** encoded bytes; one without stays at 4,096.
+   (A holder cannot see whether a sealed introduction carries a card, so the larger cap is `sealed`'s.) Relays hold at
+   most 16 per inbox, so the bound per recipient stays small. `picture.data` is at most 8,192 bytes before encoding
+   (M§8.2's inline thumbnail bound), `image/jpeg` or `image/png`; `display_name` at most 256 characters, as in
+   `identity`.
+3. **A claim, attributed.** The receiver renders the card as the sending identity's own claim, labelled unverified,
+   beside the identity itself: on an introduction, in the requests surface only. A logo or brand is shown as verified
+   only by §18.2's rule (a credential from a trusted issuer), never because a card carries it. A client MAY let its
+   user hide pictures on requests from identities it does not know.
+4. **The receiver's own choice wins.** A picture the receiving user chose for a contact takes precedence over a card.
+5. **Replacement and removal.** A later grant's card replaces the earlier one; a card without `picture` removes the
+   picture; a later grant without `profile` leaves what the receiver holds. An introduction's card is kept with the
+   request, and with the contact once the request is granted.
+6. **After revocation or expiry** of the grant, the receiver SHOULD stop showing the grantor's card. A courtesy, not
+   something the sender can enforce.
+7. **A card that fails** (cannot be unsealed, over a limit, a type not listed) is ignored; it never invalidates the
+   introduction or the grant that carries it.
+
+Open:
+
+- **Compatibility.** The message schemas refuse unknown members, so an implementation older than this refuses a
+  grant carrying `profile`, and refuses an introduction over 4,096 bytes. A sender cannot tell which its peer is. To
+  settle with the text: land it in place under §11.4 as 185 did, or have the sender learn support first (a
+  capability in the DID document's service entry or the peer's `hello`).
+- Whether a card may also travel as Messaging content ((b)) between identities that already share a conversation.
+- A recorded video greeting on an introduction (asked 2026-11-20): too large for any inline cap, so it would be an
+  encrypted blob by reference. Its own gap if wanted.
+
+Vectors when adopted: an introduction with `sealed` between 4,097 and 16,384 bytes (accepted) and one over 16,384
+(`introduction-too-large`); one without `sealed` over 4,096 (refused as now); a grant with a valid `profile`; cards
+over the picture limit, of an unlisted type, sealed to another identity, or bound to another grant id (each ignored,
+the carrier accepted); a following grant that replaces the card, one that removes the picture, one with no `profile`.
