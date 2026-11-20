@@ -1649,8 +1649,8 @@ and content into one conversation timeline by peer identity.
 
 A stranger who wants to message reuses §19.4 unchanged in structure:
 
-- The stranger sends an `introduction`. It remains ≤ 4,096 bytes, rate-limited, never ringing, and
-  shown on the requests surface.
+- The stranger sends an `introduction`. It remains ≤ 4,096 bytes (16,384 when it carries a profile card,
+  §19.4 `profile-card/1.0`, spec-gap 186), rate-limited, never ringing, and shown on the requests surface.
 - The recipient answers with a `grant` whose `scope` includes **`dsip.message`** (new
   `dsip-grant-scope` value), or rejects, or stays silent.
 
@@ -1661,7 +1661,8 @@ A stranger who wants to message reuses §19.4 unchanged in structure:
 "sealed": { "alg": "hpke-base-x25519-sha256-aes128gcm", "enc": "<base64url>", "ct": "<base64url>" }
 ```
 
-- The plaintext is `{"purpose": "…"}`. `purpose` is still ≤ 280 characters.
+- The plaintext is `{"purpose": "…"}`. `purpose` is still ≤ 280 characters. To a recipient that supports
+  `profile-card/1.0` it MAY also hold `profile`, the introducer's profile card (§19.4).
 - HPKE `info` is `"dsip sealed introduction v1"`.
 - AAD is the UTF-8 of `id` ‖ 0x00 ‖ `from` ‖ 0x00 ‖ `to`, so a sealed body cannot be spliced into
   another introduction.
@@ -1674,7 +1675,8 @@ A stranger who wants to message reuses §19.4 unchanged in structure:
 introduction to it is deposited at the recipient's mailbox as `class: introduction` with the signed
 envelope in `envelope` and the recipient in `recipient`, and the answering `grant` is deposited the
 same way at the requester's mailbox. The mailbox applies §19.4's relay rules: it verifies the envelope
-when deposited (signature, delegation, the 4,096-byte cap, validity), rate-limits per sender identity
+when deposited (signature, delegation, the 4,096-byte cap, or 16,384 bytes for an introduction that carries `sealed`
+and lists `profile-card/1.0` when the mailbox's `hello` advertises `introduction_max_bytes`, §19.4; validity), rate-limits per sender identity
 and per recipient inbox (`policy.rate-limited` with `retry_after`), accepts an introduction for an
 identity it does not serve — or beyond its bounded inbox — exactly as it accepts a held one and then
 drops it, and holds what it keeps only until the envelope's `expires_at`. (spec-gap 81) The rate limits cover whatever

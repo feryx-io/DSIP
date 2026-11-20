@@ -853,7 +853,8 @@ rejects, and both act the same on the same message. Within that, a 1.x revision 
 The payload schemas are closed: a 1.0 receiver rejects a field it does not know as a schema failure. A field that a
 1.x revision adds to an existing core message is therefore defined by an extension or a profile, and a sender MUST
 include it only for a receiver known to support that extension or profile — from the `dsip.profiles` or
-`dsip.extensions` of a message the receiver sent, its `hello` capabilities (§13.2), or its DID document. A field
+`dsip.extensions` of a message the receiver sent, its `hello` capabilities (§13.2), or its DID document, or by a
+means the extension or profile itself defines (spec-gap 186). A field
 every receiver would have to accept, a changed rule, a removed field or token, or any other change that would make a
 1.0 implementation reject what 1.x accepts or accept what 1.x rejects is a new major version, 2.0, negotiated as
 §11.2 says. `dsip.core` stays `"1.0"` across 1.x revisions. Errata — text that contradicts itself or the conformance
@@ -1807,7 +1808,7 @@ A PSTN caller has no DID; a gateway carries its number as a `tel` claim (a regis
 
 ### 18.2 Logo and Brand Claims
 
-Logos, avatars, brand names, and display names are claims, not truth.
+Logos, avatars, brand names, and display names are claims, not truth. That holds for a profile card (§19.4, `profile-card/1.0`): the name and picture an identity sends of itself are shown as its own unverified claim.
 
 A logo is shown as verified only if:
 
@@ -1922,14 +1923,14 @@ An `introduction` is a constrained, media-less, session-less request for permiss
 
 Constraints that keep the request channel spam-bounded:
 
-- **Size:** the encoded introduction envelope MUST NOT exceed 4,096 bytes (a core constant, deliberately far below the transport cap). `purpose` is limited to 280 characters and is a claim like any display field (§18.2) — clients render it attributed and unverified.
+- **Size:** the encoded introduction envelope MUST NOT exceed 4,096 bytes (a core constant, deliberately far below the transport cap). An introduction that carries a profile card (below; extension `profile-card/1.0`, spec-gap 186) MAY be up to 16,384 bytes. `purpose` is limited to 280 characters and is a claim like any display field (§18.2) — clients render it attributed and unverified.
 - **No media, no session:** an introduction cannot become a call. It carries no media offer and creates no session state beyond the pending request.
 - **Validity:** `expires_at − issued_at` MAY be up to 604,800 seconds (7 days), because introductions are store-and-forward friendly by design — the recipient may be offline for days.
 - **Rate limits are mandatory:** relays MUST rate-limit introductions per sender identity and per recipient inbox, with tier-aware defaults (§19.1) — e.g., self-issued identities a few per day, credential-backed identities more. Exceeded limits return `policy.rate-limited` with `retry_after`.
 - **Optional `contact_token`:** an opaque token the recipient's authority previously issued out of band (QR code, printed card, link, directory entry). An introduction bearing a valid token SHOULD bypass rate limits and MAY be auto-granted per recipient policy. Tokens are single-audience, **single-use** (the first introduction carrying a token is auto-granted and the token is consumed; multi-use tokens are a deployment extension), and expirable at the issuer's discretion.
 - **Relays and unknown recipients:** a relay MUST accept an introduction without a routing response whether or not it knows the recipient (§13.2), MAY hold it bounded per recipient inbox (RECOMMENDED: 16) until `expires_at`, and delivers it on the recipient's next binding. This is what makes a nonexistent recipient and an ignoring one indistinguishable. A held introduction is verified against its own `expires_at`, not the 300 s replay window (§12.9).
 - **Other holders (v0.8):** these rules bind any service that holds introductions for recipients, not only relays. The Messaging Profile's mailboxes hold introductions and the grants that answer them for their owners, under the same rate limits, anti-enumeration and bounds.
-- **Sealed purpose (v0.8):** an introduction MAY replace `purpose` with `sealed` — `{alg, enc, ct}`, the purpose encrypted with HPKE to the recipient's X25519 `keyAgreement` key and bound to the introduction's `id`, `from` and `to` (the construction is the Messaging Profile's, M§6.9 and M§14.1). `purpose` and `sealed` MUST NOT both be present. Sealing hides the request text from every service that holds it and so defeats content screening; rate limits still apply.
+- **Sealed purpose (v0.8):** an introduction MAY replace `purpose` with `sealed` — `{alg, enc, ct}`, the purpose encrypted with HPKE to the recipient's X25519 `keyAgreement` key and bound to the introduction's `id`, `from` and `to` (the construction is the Messaging Profile's, M§6.9 and M§14.1). `purpose` and `sealed` MUST NOT both be present. Sealing hides the request text from every service that holds it and so defeats content screening; rate limits still apply. With `profile-card/1.0` the sealed plaintext MAY also hold the introducer's profile card (below).
 
 #### Outcomes
 
@@ -1975,6 +1976,51 @@ Three outcomes, deliberately including silence:
 3. **Silence** — the default posture. No response is ever required, no response deadline exists, and senders MUST NOT interpret silence as anything. Combined with the anti-enumeration rule (§9.3), this means an introduction to a nonexistent identity and an ignored introduction are indistinguishable to the sender.
 
 An `invite` from an identity holding no grant (and matching no other allow policy) is rejected with `policy.first-contact-required` — the rejection that points the sender at this mechanism.
+
+#### Profile cards (extension `profile-card/1.0`)
+
+*(1.x, spec-gap 186.)* A **profile card** is what an identity asks to be shown as: a name and a small picture. It is a claim like any display field (§18.2), made by the identity that signs the message carrying it. The extension `profile-card/1.0` carries a card, sealed to the other party, on the two first-contact messages: the introducer's on its `introduction`, the grantor's on its `grant`. No relay, mailbox or other holder can read it.
+
+**The card** is a JSON object:
+
+```json
+{
+  "display_name": "Carol Nguyen",
+  "picture": { "content_type": "image/jpeg", "data": "<base64url>" }
+}
+```
+
+- `display_name` (optional): 1 to 256 characters (Unicode code points).
+- `picture` (optional): an object of exactly `content_type`, which is `image/jpeg` or `image/png`, and `data`, the unpadded base64url of the image, which is at least 1 and at most **4,096 bytes** before encoding. The bound is what the introduction cap leaves: a card is encoded once in the sealed plaintext, again as ciphertext and again in the envelope, so 4,096 bytes of picture are about 9,700 bytes of envelope.
+- A receiver ignores card members it does not know.
+
+**On an introduction.** The card is the member `profile` of the `sealed` plaintext, beside `purpose`: `{"purpose": "…", "profile": {…}}`. An introduction that carries a card therefore seals its purpose (the empty string when it states none), and it lists `profile-card/1.0` in `dsip.extensions`. An introduction that carries `sealed` and lists the extension MAY be up to **16,384** encoded bytes; every other introduction stays at 4,096. A holder cannot see whether a sealed plaintext holds a card, so the larger cap is the extension's, not the card's.
+
+**On a grant.** The card is the member `profile`: `{alg, enc, ct}`, HPKE as for a sealed purpose (`alg` `hpke-base-x25519-sha256-aes128gcm`), to the key agreement key of the grant's `to` (the grantee identity, so each of its devices opens it), `info` `dsip profile card v1`, AAD `id ‖ 0x00 ‖ from ‖ 0x00 ‖ to` of the grant. The plaintext is the JSON object `{"profile": {…}}`. A grant that carries `profile` lists `profile-card/1.0` in `dsip.extensions`. A grantor sends a changed card with a grant that follows a grant (above).
+
+**Who may be sent one.** The schemas of a receiver without the extension refuse a grant that carries `profile` and a sealed plaintext that is not exactly a purpose, and its size check refuses a larger introduction; an introduction is never answered, so the sender would not learn of it. A sender therefore MUST NOT send a card unless the receiving identity is known to support `profile-card/1.0` (§11.4), which it is when any of these holds:
+
+- it listed `profile-card/1.0` in `dsip.extensions` of an introduction or a grant it sent to the sender. An introducer that supports the extension SHOULD list it on every introduction, with or without a card, so that the grant answering it may carry the grantor's;
+- its DID document lists `profile-card/1.0` in the top-level array `dsipExtensions`;
+- it said so itself, out of band, with the address it gave the sender. How a link, a QR code or the carrier of a contact token states it is the deployment's.
+
+A `did:key` identity has no document, so the first and the last apply to it.
+
+An introduction over 4,096 bytes is also refused by a holder that does not implement the extension. A relay, mailbox or other service that accepts such introductions says so in its `hello` `capabilities` (§13.2) with `introduction_max_bytes` (an integer; absent means 4,096), and a sender MUST NOT hand an introduction to a service whose advertised value is smaller than the encoded envelope. A holder that implements the extension applies the cap above and every other rule of this section unchanged: the rate limits and the bound of 16 held per inbox count a larger introduction as one.
+
+A sender that may not send its card sends the introduction or the grant without it.
+
+**Consent.** A card leaves a device only by its user's standing choice. A client MUST NOT send one unless its user has turned sharing on, and the default is off. With an introduction sent and with a grant given are separate choices.
+
+**Receiving.** A card that fails never invalidates the message that carries it:
+
+- A card is **ignored** when it is not a JSON object, when `display_name` is present and is not a string of 1 to 256 characters, or when `picture` is present and is not an object of exactly the two strings above, names another `content_type`, or holds `data` that is not unpadded base64url of 1 to 4,096 bytes. A card is taken whole or not at all.
+- A sealed plaintext is still exactly `purpose`, optionally with `profile`: any other member refuses it as before. A `profile` member whose card is ignored leaves the purpose as it is.
+- A grant's `profile` that names another `alg`, does not open, or opens to something other than `{"profile": {…}}` is ignored, and the grant is held as if it carried none, exactly as for `presence_keys` it cannot open.
+
+**Showing it.** A receiver renders a card as the sending identity's own claim, labelled as unverified, beside the identity itself, and an introduction's card only in the requests surface. Nothing a card carries is shown as verified: a logo or a brand is verified only as §18.2 says. A client MAY let its user hide pictures on requests from identities the user does not know. A picture the receiving user chose for a contact takes precedence over that contact's card.
+
+**Keeping it.** An introduction's card is kept with the request, and with the contact once the request is granted. A later grant's card replaces the grantor's earlier one; a card without `picture` removes the picture; a later grant without `profile` leaves what the receiver holds. When the grant that carried a card is revoked or expires, the receiver SHOULD stop showing it. That is a courtesy the sender cannot enforce: the receiver already holds the bytes.
 
 #### UX requirement
 
@@ -2796,6 +2842,13 @@ or rejects.
   185). The code rides in `mailbox-config` `admission`, sent only to a mailbox whose `hello` `mailbox` capability says
   `enrolment: "admission"` (§11.4), and is spent by the enrolment; refusals `mailbox.admission-required` and
   `mailbox.admission-refused` are registered. A 1.0 device never sends the field and is refused as it was.
+- §19.4: the extension `profile-card/1.0` (spec-gap 186). An identity may give the party it introduces itself to, or
+  accepts, a profile card (a name and a picture of at most 4,096 bytes), sealed to that party: in the `sealed`
+  plaintext of an `introduction`, which may then be up to 16,384 bytes, and in a new `profile` member of a `grant`.
+  A card is sent only to an identity known to support the extension (its `dsip.extensions`, its DID document's
+  `dsipExtensions`, or its own word out of band; §11.4 admits a means an extension defines), and a larger
+  introduction only through a holder whose `hello` advertises `introduction_max_bytes`. Sharing is the user's choice
+  and off by default; a card is shown as an unverified claim (§18.2). A 1.0 implementation is never sent one.
 
 ---
 
