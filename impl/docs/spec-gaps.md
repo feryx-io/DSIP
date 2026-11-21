@@ -5564,9 +5564,7 @@ In the text (core §19.4 "Profile cards", §18.2, §11.4, A.16; M§14.1), as the
 
 Open:
 
-- **`did:key` identities** have no document, so an introducer knows a `did:key` recipient supports cards only from
-  an earlier message or out of band. Advertising the extension in a DHT reachability hint would close that, but the
-  hint schema is closed too, so it is its own change to the hints profile.
+- **`did:key` identities**: closed by spec-gap 189 (the hint's own `dsip.extensions`).
 - Whether a card may also travel as Messaging content ((b)) between identities that already share a conversation.
 - A recorded video greeting on an introduction (asked 2026-11-20): too large for any inline cap, so it would be an
   encrypted blob by reference. Its own gap if wanted.
@@ -5649,3 +5647,30 @@ plaintext that holds one is `sealed-plaintext-invalid`. Vectors (hand-authored):
 `messaging/mls-conversation-bytes-lone-surrogate`. The Python harness and impl-ts changed; dsip-rs already read it so.
 The harness's §10.3 parse also stopped accepting `NaN` and `Infinity`, which are not JSON and which the other two
 never accepted.
+
+## 189. §19.4, DHT Hints Profile §3 — an identity with no document cannot tell a stranger it supports an extension
+
+**Found** 2026-11-21, building profile cards into the app (spec-gap 186). **Decided (2026-11-21, user): in the hint.**
+
+A card may be sent only to an identity known to support `profile-card/1.0`: it listed the extension on a message it
+sent, its DID document lists it, or it said so out of band. An app identity is a `did:key`: no document. The app
+gives out bare DIDs, so nothing is said out of band. A first introduction to someone never met, which is the case
+the extension exists for, could therefore never carry a card.
+
+Choices:
+
+- **(a) A new member of the hint** (`extensions: [...]`). The hint schema is closed, so this is a schema change that
+  a 1.0 hints node refuses.
+- **(b) The hint's own `dsip.extensions`.** Every payload has the list, an unknown non-critical entry is ignored
+  (§11.2), and spec-gap 186 already reads the list on an introduction or grant as "this identity supports it". No
+  schema changes and a 1.0 node stores the hint.
+- **(c) A marker in the address the app gives out.** Works only for addresses given in the new form.
+
+**Chosen: (b).** §19.4: a reachability hint that the sender verified (§8.3) and that has not expired counts as the
+identity listing the extension. It is the identity's own signed statement, as its key agreement delegation in a hint
+is (spec-gap 179), and it decides nothing but whether a card may be sent: a false or stale listing costs a refused
+introduction. The authority order of §8.1 is untouched. Hints profile §3 says a publisher lists what it supports
+there.
+
+Vectors (hand-authored): `dht/hint-lists-extension` (a node stores it, knowing the extension or not),
+`messaging/profile-card-send-hint-lists-it`. No implementation changed: all three already accepted both.

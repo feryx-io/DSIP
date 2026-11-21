@@ -42,6 +42,9 @@ A hint is a DSIP-JOSE envelope (§10.2) whose payload is:
 - `key_agreement` (optional, 1.x, spec-gap 179): the subject's current key agreement delegation (core §7.3), an
   envelope object (`{protected, payload, signature}`, §10.2) as the `delegations` header carries delegations. Publishers whose identity has one SHOULD carry it, so that senders find the key they seal to where they
   find the subject's devices.
+- `dsip.extensions` (1.x, spec-gap 189): a publisher lists here the extensions its identity supports where the
+  extension's own text says a hint may state it (core §19.4, `profile-card/1.0`). A node stores and returns such a
+  hint as any other and need not know the extension; a hint never lists one in `dsip.critical` for this.
 - `seq` MUST be strictly increasing per subject across publications. Using `issued_at` as `seq`
   satisfies this for a single publisher clock; multi-device publishers SHOULD coordinate or
   accept that the latest clock wins.
