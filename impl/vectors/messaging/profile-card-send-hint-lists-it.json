@@ -1,0 +1,27 @@
+{
+  "vector": "messaging/profile-card-send-hint-lists-it",
+  "format": 1,
+  "kind": "messaging",
+  "description": "A did:key identity never met: its verified, current reachability hint lists the extension, which is the identity saying so (spec-gap 189).",
+  "spec_ref": [
+    "§19.4",
+    "§11.4"
+  ],
+  "context": {},
+  "input": {
+    "check": "profile-card-send",
+    "sharing": true,
+    "carrier": "introduction",
+    "peer": {
+      "listed": [
+        "profile-card/1.0"
+      ],
+      "document": null,
+      "out_of_band": []
+    },
+    "encoded_size": 3000
+  },
+  "expect": {
+    "card": true
+  }
+}

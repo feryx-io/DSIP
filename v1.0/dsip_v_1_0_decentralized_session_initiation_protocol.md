@@ -2000,11 +2000,11 @@ An `invite` from an identity holding no grant (and matching no other allow polic
 
 **Who may be sent one.** The schemas of a receiver without the extension refuse a grant that carries `profile` and a sealed plaintext that is not exactly a purpose, and its size check refuses a larger introduction; an introduction is never answered, so the sender would not learn of it. A sender therefore MUST NOT send a card unless the receiving identity is known to support `profile-card/1.0` (§11.4), which it is when any of these holds:
 
-- it listed `profile-card/1.0` in `dsip.extensions` of an introduction or a grant it sent to the sender. An introducer that supports the extension SHOULD list it on every introduction, with or without a card, so that the grant answering it may carry the grantor's;
+- it listed `profile-card/1.0` in `dsip.extensions` of an introduction or a grant it sent to the sender, or of a reachability hint (§8.5, the DHT Hints Profile) that the sender verified as §8.3 requires and that has not expired *(spec-gap 189)*. A hint is signed under the identity's delegation, so this is the identity saying so; it tells the sender nothing else, and the authority order of §8.1 is unchanged. An introducer that supports the extension SHOULD list it on every introduction, with or without a card, so that the grant answering it may carry the grantor's;
 - its DID document lists `profile-card/1.0` in the top-level array `dsipExtensions`;
 - it said so itself, out of band, with the address it gave the sender. How a link, a QR code or the carrier of a contact token states it is the deployment's.
 
-A `did:key` identity has no document, so the first and the last apply to it.
+A `did:key` identity has no document, so the first and the last apply to it; its hint is how one that the sender never met says so.
 
 An introduction over 4,096 bytes is also refused by a holder that does not implement the extension. A relay, mailbox or other service that accepts such introductions says so in its `hello` `capabilities` (§13.2) with `introduction_max_bytes` (an integer of at least 4,096; absent means 4,096), and a sender MUST NOT hand an introduction to a service whose advertised value is smaller than the encoded envelope. A holder that implements the extension reads the payload of an introduction it holds or carries for `sealed` and the extension, applies the cap above and every other rule of this section unchanged: the rate limits and the bound of 16 held per inbox count a larger introduction as one.
 
@@ -2854,6 +2854,9 @@ or rejects.
 - §13.3: the message that keeps a relay holding an attempt is one the attempt acts on; a `cancel` from the initiator
   addressed to a device that is no leg of it is routed by `to` and does not restart the 1,800 s (spec-gap 187). The
   text could be read either way and the implementations had; found by differential fuzzing.
+- §19.4: a verified, current reachability hint that lists `profile-card/1.0` in `dsip.extensions` is its subject
+  saying it supports the extension, so a first introduction to a `did:key` identity may carry a card (spec-gap 189).
+  No schema changes: a hint always had `dsip.extensions`.
 - §10.3: a text in which a string or member name holds a lone surrogate, escaped or not, is not a payload
   (spec-gap 188). The text was silent and the implementations disagreed: one refused such a signed message and two
   accepted it. Found by probing with generated profile cards.

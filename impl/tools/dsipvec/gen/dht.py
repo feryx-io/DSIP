@@ -35,6 +35,12 @@ def vectors() -> list[dict]:
     h1_dev = signed(hint("h1d", ALICE, ALICE, 1, at=NOW - 60), "alice-phone")
     out.append(dv("valid-delegated-device", "Hint for alice signed by alice-phone under a live delegation.", ["§8.3", "§7.4"],
                   h1_dev, accept(type="reachability-hint", signer=APH, identity=ALICE, winner="input", conflict="none")))
+    # spec-gap 189: a hint may list the extensions its subject supports; a node that knows none of them stores it
+    listing = {**hint("h1x", ALICE, ALICE, 1, at=NOW - 60), "dsip": {**F.VERSION_TRANSPORT, "extensions": ["profile-card/1.0"]}}
+    out.append(dv("hint-lists-extension", "A hint whose dsip.extensions lists profile-card/1.0: the subject's device saying it "
+                  "supports the extension (§19.4). It is a hint like any other to a node, which need not know the extension.",
+                  ["§8.3", "§19.4", "§11.2"], signed(listing, "alice-phone"),
+                  accept(type="reachability-hint", signer=APH, identity=ALICE, winner="input", conflict="none")))
     raw = b64url_decode(h1["payload"]).decode().replace("relay.example.com", "evil.example.com")
     out.append(dv("tampered-endpoint", "Endpoint URI altered after signing.", ["§8.3"],
                   {**h1, "payload": b64url_encode(raw.encode())}, reject("signature-invalid")))

@@ -2497,6 +2497,9 @@ def first_contact_vectors():
        carrier="introduction", document=doc("sealed-body/1.0", EXT), size=3000)
     ps("profile-card-send-document-without-array", "A document without dsipExtensions says nothing.", no("peer-unsupported"),
        carrier="introduction", document={"id": BOB}, size=3000)
+    ps("profile-card-send-hint-lists-it",
+       "A did:key identity never met: its verified, current reachability hint lists the extension, which is the identity saying so (spec-gap 189).",
+       yes, carrier="introduction", listed=[EXT], size=3000)
     ps("profile-card-send-out-of-band", "The identity said so itself with the address it gave: a did:key has no document.", yes,
        carrier="introduction", oob=[EXT], size=3000)
     ps("profile-card-send-introduction-over-service-default",
