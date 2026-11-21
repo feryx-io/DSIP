@@ -1,0 +1,44 @@
+{
+  "vector": "messaging/sealed-introduction-plaintext-lone-surrogate",
+  "format": 1,
+  "kind": "messaging",
+  "description": "A sealed plaintext is §10.3 JSON: one whose string holds a lone surrogate escape is refused (spec-gap 188).",
+  "spec_ref": [
+    "M§14.1",
+    "§10.3"
+  ],
+  "context": {},
+  "input": {
+    "check": "sealed-introduction-open",
+    "payload": {
+      "dsip": {
+        "core": "1.0",
+        "min_core": "1.0",
+        "profiles": [
+          "messaging/1.0"
+        ],
+        "extensions": [],
+        "critical": []
+      },
+      "type": "introduction",
+      "id": "01K742SG003KAMDZYYYMSHGNVQ",
+      "from": "did:web:alice.example",
+      "to": "did:web:example.com:users:bob",
+      "identity": {
+        "display_name": "Alice"
+      },
+      "issued_at": 1760000000,
+      "expires_at": 1760604800,
+      "sealed": {
+        "alg": "hpke-base-x25519-sha256-aes128gcm",
+        "enc": "GOAC6ikHDszB0YqIgQgRY1mm4y_4difNpnnwAKP9N0s",
+        "ct": "motmlIituWq-pYLfjZDFx5aktf-WV1VjfCHNidDwrar1DdYjkIVp"
+      }
+    },
+    "recipient_ed25519_seed_hex": "debb1447ad694df3f8e947ff249a52e382f5e0f539abf79c4710beefd2f89b64"
+  },
+  "expect": {
+    "verdict": "reject",
+    "code": "sealed-plaintext-invalid"
+  }
+}

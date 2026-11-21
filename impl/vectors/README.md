@@ -128,7 +128,7 @@ implementation under test MUST emit that token when it signals the failure.
 | `kid-unresolvable` | `kid` DID cannot be resolved, or fragment names no Ed25519 verification method (§8.1) | |
 | `signature-invalid` | Ed25519 verification over `protected.payload` failed (§10.2) | |
 | `payload-not-utf8` | decoded payload is not valid UTF-8 (§10.3) | |
-| `payload-not-json` | payload is not a JSON object (§10.3) | |
+| `payload-not-json` | payload is not a JSON object, or a string or member name anywhere in it holds a lone surrogate, written as an escape or not (§10.3; 1.x, spec-gap 188). Checked before `payload-float`. The same holds wherever this parse is used: a sealed plaintext (`sealed-plaintext-invalid`), `mls-conversation-bytes` | |
 | `payload-float` | any number in the payload is non-integer (§10.3) | |
 | `payload-shape` | core fields (`dsip`,`type`,`id`,`from`,`issued_at`,`expires_at`) missing or wrong primitive type, or `id` not a ULID (§10.3; every later stage that reads the id depends on it) | |
 | `signer-mismatch` | `kid` DID ≠ `from` DID and no delegation presented linking them (§7.4, check 3) | `transport.hello-rejected` on `hello` |

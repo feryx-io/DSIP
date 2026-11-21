@@ -1970,6 +1970,8 @@ def mls_layer_vectors():
          accept(effective={"kind": "direct"}))
     conv("not-utf8", "Extension data that is not UTF-8.", b"\xff\xfe{}", reject("payload-not-utf8"))
     conv("not-json", "Extension data that is not a JSON object.", b"[1,2]", reject("payload-not-json"))
+    conv("lone-surrogate", "Extension data whose string holds a lone surrogate escape is not §10.3 JSON (spec-gap 188).",
+         json.dumps(ext, separators=(",", ":")).encode()[:-1] + b',"x_note":"\\ud83d"}', reject("payload-not-json"))
     conv("float", "A float anywhere violates §10.3.", json.dumps({**ext, "version": 1.5}).encode(), reject("payload-float"))
     conv("missing-hub", "The hub is required.", json.dumps({"conversation": CONV, "kind": "group"}).encode(), reject("schema-invalid"))
 
@@ -2425,6 +2427,13 @@ def first_contact_vectors():
        "An introducer that supports the extension lists it on every sealed introduction, with or without a card.",
        sealed(with_ext(intro("listed-no-card")), json.dumps({"purpose": purpose}).encode()), accept(purpose=purpose), refs=P)
 
+    so("sealed-introduction-plaintext-lone-surrogate",
+       "A sealed plaintext is §10.3 JSON: one whose string holds a lone surrogate escape is refused (spec-gap 188).",
+       sealed(intro("ls"), b'{"purpose":"hi \\ud83d"}'), reject("sealed-plaintext-invalid"), refs=["M§14.1", "§10.3"])
+    so("sealed-introduction-plaintext-float", "And one that holds a float anywhere.",
+       sealed(with_ext(intro("fl")), b'{"purpose":"hi","profile":{"x":1.5}}'), reject("sealed-plaintext-invalid"), refs=["M§14.1", "§10.3"])
+    so("sealed-introduction-plaintext-bom", "And one that starts with a byte-order mark.",
+       sealed(intro("bom"), b'\xef\xbb\xbf{"purpose":"hi"}'), reject("sealed-plaintext-invalid"), refs=["M§14.1", "§10.3"])
     alice_seed = hashlib.sha256(b"dsip-vector:alice").digest()
     alice_x = M.x25519_public(M.x25519_from_ed25519_seed(alice_seed))
 
@@ -2459,6 +2468,8 @@ def first_contact_vectors():
        grant_card("gp-extra", plaintext=json.dumps({"profile": card, "purpose": "hi"}).encode()), reject("sealed-plaintext-invalid"))
     go("grant-profile-plaintext-not-json", "A plaintext that is not JSON.", grant_card("gp-raw", plaintext=b"hello"),
        reject("sealed-plaintext-invalid"))
+    go("grant-profile-plaintext-lone-surrogate", "The plaintext is §10.3 JSON: a name holding a lone surrogate escape is not (spec-gap 188).",
+       grant_card("gp-ls", plaintext=b'{"profile":{"display_name":"\\ud83d"}}'), reject("sealed-plaintext-invalid"))
     go("grant-profile-card-invalid", "A card that fails its rules (a picture over 4,096 bytes) is ignored.",
        grant_card("gp-big", {"display_name": "Bob", "picture": pic(4097)}), reject("profile-card-invalid"))
     go("grant-profile-card-not-object", "A card that is not an object is ignored.", grant_card("gp-str", "Bob"),

@@ -56,6 +56,24 @@ def vectors() -> list[dict]:
     out.append(env_vector("envelope-bad-base64url", "payload member contains characters outside the base64url alphabet.",
                           ["§10.2"], {**good, "payload": good["payload"] + "+/="}, reject("envelope-shape")))
 
+    # --- wire format at parse (§10.3): lone surrogates (spec-gap 188)
+    raw_intro = lambda label, member: _raw_signed(
+        '{"dsip":' + json.dumps(F.VERSION, separators=(",", ":")) + ',"type":"introduction","id":"' + uid(label) + '","from":"'
+        + F.did("carol-phone") + '","to":"' + F.BOB_WEB + '","identity":{"display_name":"Carol"},' + member
+        + ',"issued_at":%d,"expires_at":%d}' % (NOW, NOW + 604800), "carol-phone")
+    carol_ok = accept(type="introduction", signer=F.did("carol-phone"), identity=F.did("carol-phone"))
+    out.append(env_vector("payload-lone-surrogate-escape", "A string holding an escaped high surrogate with no low one after it "
+                          "cannot be UTF-8: the text is not a payload.", ["§10.3"],
+                          raw_intro("ls-high", '"purpose":"hi \\ud83d"'), reject("payload-not-json")))
+    out.append(env_vector("payload-lone-low-surrogate-escape", "Nor a low surrogate with no high one before it.", ["§10.3"],
+                          raw_intro("ls-low", '"purpose":"\\ude00 hi"'), reject("payload-not-json")))
+    out.append(env_vector("payload-lone-surrogate-member-name", "Nor a member name that holds one.", ["§10.3"],
+                          raw_intro("ls-name", '"x_\\ud83d":1'), reject("payload-not-json")))
+    out.append(env_vector("payload-lone-surrogate-before-float", "It is not JSON for §10.3, so nothing later is looked at: "
+                          "not the float beside it.", ["§10.3"],
+                          raw_intro("ls-float", '"purpose":"\\ud83d","x":1.5'), reject("payload-not-json")))
+    out.append(env_vector("payload-surrogate-pair-escape", "An escaped pair is one character and is accepted.", ["§10.3"],
+                          raw_intro("ls-pair", '"purpose":"hi \\ud83d\\ude00"'), carol_ok))
     # --- wire format at parse (§10.3)
     out.append(env_vector("payload-float-timestamp", "issued_at is 1760000000.0: floats are forbidden even when integral.",
                           ["§10.3"], _raw_signed(json.dumps(inv).replace(f'"issued_at": {NOW}', f'"issued_at": {NOW}.0'), "alice-phone"),

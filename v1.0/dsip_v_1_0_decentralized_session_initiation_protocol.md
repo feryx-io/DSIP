@@ -757,7 +757,7 @@ Mandatory algorithm set for v1.0: **Ed25519 (EdDSA) MUST be implemented; ES256 M
 
 DSIP JSON payloads:
 
-- Use UTF-8
+- Use UTF-8. A text in which a string or a member name holds a lone surrogate, written as an escape (`"\ud83d"`) or otherwise, cannot be UTF-8 and is not a payload: a receiver refuses it as it refuses text that is not JSON *(1.x, spec-gap 188)*. An escaped surrogate pair is one character and is accepted.
 - Avoid floating point values
 - Use integer timestamps
 - Use explicit arrays instead of overloaded strings
@@ -2854,6 +2854,9 @@ or rejects.
 - §13.3: the message that keeps a relay holding an attempt is one the attempt acts on; a `cancel` from the initiator
   addressed to a device that is no leg of it is routed by `to` and does not restart the 1,800 s (spec-gap 187). The
   text could be read either way and the implementations had; found by differential fuzzing.
+- §10.3: a text in which a string or member name holds a lone surrogate, escaped or not, is not a payload
+  (spec-gap 188). The text was silent and the implementations disagreed: one refused such a signed message and two
+  accepted it. Found by probing with generated profile cards.
 
 ---
 

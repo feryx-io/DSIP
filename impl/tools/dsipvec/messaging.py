@@ -1990,7 +1990,8 @@ def check_conversation_bytes(data: bytes) -> dict:
         obj = json.loads(text)
     except ValueError:
         return reject("payload-not-json")
-    if not isinstance(obj, dict):
+    from .wire import has_lone_surrogate
+    if not isinstance(obj, dict) or has_lone_surrogate(obj):  # §10.3, spec-gap 188
         return reject("payload-not-json")
     if has_float(obj):
         return reject("payload-float")

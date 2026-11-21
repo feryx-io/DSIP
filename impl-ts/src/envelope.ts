@@ -142,8 +142,25 @@ export function decodePayload(bytes: Uint8Array): Decoded {
     return fail("payload-not-json");
   }
   if (!value || typeof value !== "object" || Array.isArray(value)) return fail("payload-not-json");
+  // §10.3: a lone surrogate, escaped or not, in any string or member name is not a payload
+  if (hasLoneSurrogate(value)) return fail("payload-not-json");
   if (hasFloat(text)) return fail("payload-float");
   return { ok: true, value };
+}
+
+/**
+ * Whether any string or member name in `value` holds an unpaired surrogate, which `JSON.parse` lets through from an
+ * escape such as `"\\ud83d"`.
+ *
+ * Spec: §10.3
+ */
+export function hasLoneSurrogate(value: Json): boolean {
+  if (typeof value === "string") return /[\uD800-\uDFFF]/u.test(value); // with `u`, only an unpaired one matches
+  if (Array.isArray(value)) return value.some(hasLoneSurrogate);
+  if (value !== null && typeof value === "object") {
+    return Object.entries(value).some(([k, v]) => hasLoneSurrogate(k) || hasLoneSurrogate(v as Json));
+  }
+  return false;
 }
 
 function isReject(v: unknown): v is Reject {

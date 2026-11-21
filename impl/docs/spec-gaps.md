@@ -5620,7 +5620,7 @@ count only by the order of two statements.
 
 ## 188. §10.3 — whether JSON holding a lone surrogate is a payload
 
-**Found** 2026-11-21, probing the three implementations with generated profile cards (spec-gap 186). **Open.**
+**Found** 2026-11-21, probing the three implementations with generated profile cards (spec-gap 186). **Decided (2026-11-21, user): (a).**
 
 §10.3 says a payload is UTF-8 JSON and says nothing of a string that holds a lone surrogate, which JSON's grammar
 allows as an escape: `{"display_name": "\ud83d"}`. The three disagree. dsip-rs (serde_json) refuses the text, so the
@@ -5640,4 +5640,12 @@ Choices:
   JSON parser that keeps unpaired surrogates, which Rust strings cannot hold.
 
 Recommended: **(a)**. A string that cannot be encoded as UTF-8 cannot be shown, compared or re-sent faithfully, and
-(b) is not implementable in every language. Until decided no vector pins either reading.
+(b) is not implementable in every language.
+
+**Decided (a)**, in place in §10.3: such a text is `payload-not-json`, checked before `payload-float`; a sealed
+plaintext that holds one is `sealed-plaintext-invalid`. Vectors (hand-authored): `envelope/payload-lone-surrogate-*`,
+`envelope/payload-lone-low-surrogate-escape`, `envelope/payload-surrogate-pair-escape` (a pair is accepted),
+`messaging/sealed-introduction-plaintext-lone-surrogate`, `messaging/grant-profile-plaintext-lone-surrogate`,
+`messaging/mls-conversation-bytes-lone-surrogate`. The Python harness and impl-ts changed; dsip-rs already read it so.
+The harness's §10.3 parse also stopped accepting `NaN` and `Infinity`, which are not JSON and which the other two
+never accepted.

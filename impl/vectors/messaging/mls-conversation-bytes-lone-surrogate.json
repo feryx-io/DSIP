@@ -1,0 +1,19 @@
+{
+  "vector": "messaging/mls-conversation-bytes-lone-surrogate",
+  "format": 1,
+  "kind": "messaging",
+  "description": "Extension data whose string holds a lone surrogate escape is not §10.3 JSON (spec-gap 188).",
+  "spec_ref": [
+    "M§6.3",
+    "§10.3"
+  ],
+  "context": {},
+  "input": {
+    "check": "mls-conversation-bytes",
+    "data_hex": "7b22636f6e766572736174696f6e223a2230314b3734325347303041583146364856545257425732323752222c226b696e64223a22646972656374222c22687562223a7b22646964223a226469643a7765623a6d62782e616c6963652e6578616d706c65222c22757269223a227773733a2f2f6d62782e616c6963652e6578616d706c652f64736970227d2c22737563636573736f725f6f66223a6e756c6c2c22785f6e6f7465223a225c7564383364227d"
+  },
+  "expect": {
+    "verdict": "reject",
+    "code": "payload-not-json"
+  }
+}
