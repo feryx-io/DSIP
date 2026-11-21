@@ -228,12 +228,14 @@ class Relay:
             # plain routing by `to` (§13.2), queued for a known-offline device (§13.3).
             return self.route_plain(m)
         if t == "cancel" and m["from"] == a.initiator:
-            a.last = self.now
             # §12.7 rule 3: per-leg cancel to every leg that has not terminated — or, addressed to a device, to that
             # leg alone (§12.11: "a specific device DID (targeted cancel of one leg)")
             only = m.get("to") if m.get("to") in a.legs else None
             if only is None and m.get("to") not in (None, a.identity):
-                return self.route_plain(m)  # addressed to a device that is no leg of this attempt: not the attempt's business
+                # addressed to a device that is no leg of this attempt: not the attempt's business, and so not a message
+                # that keeps it held (§13.3, spec-gap 187)
+                return self.route_plain(m)
+            a.last = self.now
             for leg in sorted(a.legs):  # device (DID) order, the suite's order wherever a relay fans out (spec-gap 89)
                 st = a.legs[leg]
                 if st == "delivered" and only in (None, leg):

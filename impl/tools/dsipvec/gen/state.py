@@ -1311,6 +1311,28 @@ def vectors() -> list[dict]:
               [{"deliver": {"leg": BLA, "type": "cancel", "reason": "user.cancelled"}}],
               **{sid: {"legs": {BPH: "cancelled", BLA: "cancelled"}, "outcome": "cancelled"}}),
     ], component="relay"))
+    # spec-gap 187: a cancel the attempt does not act on (addressed to a device that is no leg of it) is routed by `to` and
+    # does not restart the count after which the attempt is forgotten (§13.3). Found by fuzz.py, seed 1164.
+    held = {sid: {"legs": {BPH: "delivered"}, "outcome": None}}
+    out.append(trace("relay-cancel-to-no-leg-does-not-keep-the-attempt",
+                     "A cancel from the initiator addressed to a device that is no leg of the attempt is routed by `to` and is "
+                     "not attempt-scoped: it does not restart the 1800 s after which the attempt is forgotten (spec-gap 187). "
+                     "Found by fuzz.py: two implementations held the attempt 1800 s from the cancel.",
+                     ["§13.3", "§12.11", "§12.7"], None, [
+        sf({"relay": "bind", "device": BPH, "identity": BOB}, [], {}),
+        sf({"relay": "bind", "device": APH, "identity": ALICE}, [], {}),
+        sf({"recv": INV("sess")}, [{"deliver": {"leg": BPH, "type": "invite"}}], {}, **held),
+        sf({"recv": msg("progress", "r1", BPH, sid, NOW, status="ringing")}, [{"forward": {"type": "progress", "status": "ringing", "from": BPH}}], {},
+           **held),
+        sf({"advance": 1000}, [], {}, **held),
+        # to a device this relay has never seen: no leg, so not the attempt's; the sender is told there is no route (spec-gap 82)
+        sf({"recv": msg("cancel", "c-stray", APH, sid, NOW + 1000, to=BLA, reason="user.cancelled")},
+           [{"send": {"type": "error", "to": APH, "reason": "transport.unknown-recipient", "in_reply_to": uid("c-stray", NOW + 1000)}}], {}, **held),
+        # exactly 1800 s after the progress, the last message of the attempt: still held
+        sf({"advance": 800}, [], {}, **held),
+        # one second more and it is forgotten, 801 s after the cancel
+        sf({"advance": 1}, [], {}, **{sid: None}),
+    ], component="relay"))
     intro = lambda label, to: msg("introduction", label, F.did("carol-phone"), None, NOW, to=to, purpose="hi", expires_at=NOW + 600)
     out.append(trace("relay-device-addressed-cancel-leaves-the-identitys-queued-invite",
                      "A held invite is withdrawn by a cancel addressed as it was. A cancel to one device (§12.11: one leg) does not "
