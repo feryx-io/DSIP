@@ -5569,3 +5569,26 @@ Vectors when adopted: an introduction with `sealed` between 4,097 and 16,384 byt
 (`introduction-too-large`); one without `sealed` over 4,096 (refused as now); a grant with a valid `profile`; cards
 over the picture limit, of an unlisted type, sealed to another identity, or bound to another grant id (each ignored,
 the carrier accepted); a following grant that replaces the card, one that removes the picture, one with no `profile`.
+
+## 187. §13.3 — whether a cancel the attempt does not act on keeps the relay holding the attempt
+
+**Found (2026-11-21, `fuzz.py` seed 1164, in CI).** §13.3 lets a relay discard an attempt once more than 1,800 s
+have passed since it "received an attempt-scoped message for it from a leg or the initiator". A `cancel` from the
+initiator, naming the attempt's session but addressed to a device that is no leg of it, is routed by `to` (§12.11:
+a device address is a targeted cancel of one leg, and this is no leg) and changes nothing in the attempt. Python and
+dsip-rs restarted the count on it; impl-ts did not. The trace: bind one device, an invite, a cancel to another
+device one second later, 1,800 s: Python and Rust still held the attempt, TypeScript had forgotten it.
+
+Choices:
+
+- **(a) It does not count.** Attempt-scoped means the attempt acts on it; a message the relay only routes onward is
+  not the attempt's.
+- **(b) It counts**: any message of the session from the initiator, read literally.
+
+**Recommended: (a).** The Python model already called that cancel "not the attempt's business" and restarted the
+count only by the order of two statements.
+
+**Decided (2026-11-21, user): (a).** In place, §13.3: a message is attempt-scoped when the attempt acts on it, and a
+`cancel` from the initiator addressed to a device that is no leg of the attempt does not restart the count. Vector
+`state/relay-cancel-to-no-leg-does-not-keep-the-attempt` (hand-authored) pins the trace. Python changed
+(`dsipvec/relay.py`); impl-ts already read it so; dsip-rs follows with the pin.
