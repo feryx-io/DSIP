@@ -14,6 +14,8 @@ from .schema import schema_errors, dispatch_type
 from .verdict import Verdict
 
 INTRODUCTION_MAX_BYTES = 4096  # §19.4
+INTRODUCTION_CARD_MAX_BYTES = 16384  # §19.4, profile-card/1.0 (spec-gap 186)
+PROFILE_CARD_EXT = "profile-card/1.0"
 DIRECTION_ANSWERS = {         # Impl (spec-gap 9): SDP-style offer→answer direction compatibility
     "sendrecv": {"sendrecv", "sendonly", "recvonly", "inactive"},
     "sendonly": {"recvonly", "inactive"},
@@ -161,7 +163,10 @@ def check_semantic(payload: dict, ctx: dict, encoded_size: int | None = None) ->
                 return Verdict.reject("subscription-lifetime-exceeded", "policy.subscription-lifetime")
     if t == "introduction":
         size = encoded_size if encoded_size is not None else ctx.get("encoded_size")
-        if size is not None and size > INTRODUCTION_MAX_BYTES:  # §19.4
+        exts = payload["dsip"].get("extensions", [])
+        # §19.4: 16,384 with `sealed` and profile-card/1.0 listed (spec-gap 186), 4,096 otherwise
+        cap = INTRODUCTION_CARD_MAX_BYTES if "sealed" in payload and PROFILE_CARD_EXT in exts else INTRODUCTION_MAX_BYTES
+        if size is not None and size > cap:
             return Verdict.reject("introduction-too-large")
         if "purpose" in payload and "sealed" in payload:  # §19.4 (v0.8, spec-gap 36): sealed replaces purpose
             return Verdict.reject("introduction-purpose-and-sealed")

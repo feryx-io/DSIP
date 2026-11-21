@@ -1,0 +1,53 @@
+{
+  "vector": "messaging/sealed-introduction-profile-card-unknown-member-dropped",
+  "format": 1,
+  "kind": "messaging",
+  "description": "A receiver ignores card members it does not know: the card is taken without them.",
+  "spec_ref": [
+    "§19.4",
+    "M§14.1"
+  ],
+  "context": {},
+  "input": {
+    "check": "sealed-introduction-open",
+    "payload": {
+      "dsip": {
+        "core": "1.0",
+        "min_core": "1.0",
+        "profiles": [
+          "messaging/1.0"
+        ],
+        "extensions": [
+          "profile-card/1.0"
+        ],
+        "critical": []
+      },
+      "type": "introduction",
+      "id": "01K742SG000YMJBFJHYA6W10B7",
+      "from": "did:web:alice.example",
+      "to": "did:web:example.com:users:bob",
+      "identity": {
+        "display_name": "Alice"
+      },
+      "issued_at": 1760000000,
+      "expires_at": 1760604800,
+      "sealed": {
+        "alg": "hpke-base-x25519-sha256-aes128gcm",
+        "enc": "GOAC6ikHDszB0YqIgQgRY1mm4y_4difNpnnwAKP9N0s",
+        "ct": "motmlIituWq-pYLdx66Au46l-eyTAQjMwHF91HxODWsPnxKoXJJ-WVQq_i_j2b-1cXDxXWdhkJy2JGszGi7abzmZsS07q9XqSkjU-2KZI18NZteUgaTexuj34se439gdHrfqJm6h_N4SuuI7wQHuH3bfOwGrAWbgTU7CHNsKQ6FTGH-fYTRIYLnC1XbFMk5zEr2z3Cg90fSu0OInnA1NNstkCJ5ZDW-Mg_34aZpAKMF1WVHYB0s25SwoFBOpW6s5GVDo_6azdx_kllFMMdUOpTII_1bIOficOLRqp_7OBkKNOUvHzZloHJtKYi26hc6LHOoqtJtj1S01-0x8foxsB4roQHigWrpuiXXd0_F7d9v7rgrPghHMjmCOGR9l4fyH_0jUJgnYbZIftDI38niLg_F-DS762KxquOiEkGtw"
+      }
+    },
+    "recipient_ed25519_seed_hex": "debb1447ad694df3f8e947ff249a52e382f5e0f539abf79c4710beefd2f89b64"
+  },
+  "expect": {
+    "verdict": "accept",
+    "purpose": "We met at the Syracuse mesh meetup; following up about the antenna group buy.",
+    "profile": {
+      "display_name": "Alice Example",
+      "picture": {
+        "content_type": "image/jpeg",
+        "data": "_9j_4AIBwTP3IZPvLR6uO2Ja78JQcxYNG-OrVj4E__RpL9S2AgHBM_chk-8tHq47YlrvwlBzFg0b46tWPgT_9A"
+      }
+    }
+  }
+}

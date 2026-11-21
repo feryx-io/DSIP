@@ -169,7 +169,7 @@ implementation under test MUST emit that token when it signals the failure.
 | `rotation-subject-mismatch` | `key-rotation.from` ≠ `subject` (§7.5) | |
 | `rotation-next-same-as-previous` | `key-rotation.next` = `previous` (§7.5) | |
 | `rotation-signer-not-previous` | `key-rotation` signed by a method other than `previous` without `recovery: true` (§7.5; `context.signer_kid`) | |
-| `introduction-too-large` | encoded introduction envelope > 4,096 bytes (§19.4) | |
+| `introduction-too-large` | encoded introduction envelope > 4,096 bytes, or > 16,384 bytes when the payload carries `sealed` and `dsip.extensions` contains `profile-card/1.0` (§19.4; 1.x, spec-gap 186). The larger cap needs nothing in `context.supported`: it is the rule of every receiver and holder measured here | |
 | `grant-unknown-introduction` | `grant.session` references no known introduction (§19.4) and none of `context.held_grants` — the live grants the receiver holds from the signer's identity, which a grant may follow (spec-gap 150; absent = none) | |
 | `hello-in-reply-to-mismatch` | relay `hello.in_reply_to` ≠ the client hello id actually sent (§13.2, §20.5) | |
 | `hello-required` | session traffic before a verified `hello` (§13.2) | `transport.hello-required` |
@@ -745,7 +745,9 @@ Checks the table above did not list (found by the second implementation; all are
 | check | input | expect |
 |---|---|---|
 | `introduction` | a core `introduction` `payload` as the profile uses it | core stage 13 then 14 (`schema-invalid`, `introduction-purpose-and-sealed`), or `accept {effective: {sealed: bool}}` (M§14.1) |
-| `sealed-introduction-open` | `payload`, `recipient_ed25519_seed_hex` (the recipient's X25519 key is derived from it as in `x25519-key-agreement`) | `accept {purpose}` (a plain `purpose` passes through; `null` when there is neither), or in order `sealed-alg-unsupported` → `sealed-open-failed` → `sealed-plaintext-invalid` (not exactly `{"purpose": string}`) → `purpose-too-long` (> 280 characters). HPKE `info` = `dsip sealed introduction v1`, AAD = `id ‖ 0x00 ‖ from ‖ 0x00 ‖ to` (M§14.1) |
+| `sealed-introduction-open` | `payload`, `recipient_ed25519_seed_hex` (the recipient's X25519 key is derived from it as in `x25519-key-agreement`) | `accept {purpose}` (a plain `purpose` passes through; `null` when there is neither), or in order `sealed-alg-unsupported` → `sealed-open-failed` → `sealed-plaintext-invalid` (not a §10.3 JSON object — UTF-8, no float anywhere — of `purpose`, a string, and optionally `profile`, of any type, and nothing else) → `purpose-too-long` (> 280 characters). HPKE `info` = `dsip sealed introduction v1`, AAD = `id ‖ 0x00 ‖ from ‖ 0x00 ‖ to` (M§14.1). A plaintext with `profile` (§19.4 `profile-card/1.0`, spec-gap 186) is `accept {purpose, profile}` with the card as taken (**Profile cards** below), or `accept {purpose, profile_ignored: true}` when the card is ignored or the introduction's `dsip.extensions` does not contain `profile-card/1.0` |
+| `grant-profile-open` | `grant` (a `grant` payload), `recipient_ed25519_seed_hex` (the grantee identity's; its X25519 key as in `x25519-key-agreement`) | `accept {profile}`: the card as taken, or `null` for a grant without `profile`. Otherwise, in order, `profile-extension-unlisted` (`dsip.extensions` does not contain `profile-card/1.0`) → `sealed-alg-unsupported` → `sealed-open-failed` (`enc` or `ct` not base64url, or HPKE does not open) → `sealed-plaintext-invalid` (not a §10.3 JSON object of exactly `profile`) → `profile-card-invalid`. Every one of these means the card is ignored and the grant stands (§19.4). HPKE as above with `info` = `dsip profile card v1`, AAD = `id ‖ 0x00 ‖ from ‖ 0x00 ‖ to` of the grant |
+| `profile-card-send` | `sharing` (the user's standing choice for this carrier), `carrier` (`introduction` \| `grant`), `peer` = `{listed: [extension ids the receiving identity listed on an introduction or grant it sent us], document: its DID document or null, out_of_band: [extension ids it stated with its address]}`, `encoded_size` (of the envelope with the card), `service_introduction_max_bytes`? (the `hello` capability of the service the introduction would be handed to; absent = it advertises none) | `{card: true}`, or `{card: false, why}` in order: `sharing-off` → `peer-unsupported` (`profile-card/1.0` in none of `listed`, the document's top-level array `dsipExtensions`, `out_of_band`) → `service-cap` (carrier `introduction` only: `encoded_size` > the advertised value, 4,096 when absent) (§19.4, §11.4) |
 | `hpke-open` | `enc_hex`, `sk_r_hex`, `info_hex`, `aad_hex`, `ct_hex` | `accept {plaintext_hex}` or `hpke-open-failed` — RFC 9180 base mode, DHKEM(X25519, HKDF-SHA256) / HKDF-SHA256 / AES-128-GCM, sequence 0 (M§6.9) |
 | `hpke-derive-key-pair` | `ikm_hex` | `{sk_hex, pk_hex}` (RFC 9180 §7.1.3) |
 | `x25519-key-agreement` | `ed25519_seed_hex` | `{x25519_pk_hex}` — secret = SHA-512(seed)[0..32] clamped, as `did:key` derives it (M§6.9, spec-gap 55) |
@@ -770,7 +772,19 @@ Every deposit may carry `recipient` — it is addressing, not class. Beyond the 
 | `introduction`, `grant` | `recipient`, `envelope` (and no `group`: a schema rule) | — |
 
 Anything else is `deposit-fields`. After it: `object-too-large` for `mls`, `welcome`, `group_info`, `sealed`, `archive`; then
-`introduction-too-large` (`transport.envelope-too-large`) for a carried introduction `envelope` over 4,096 bytes.
+`introduction-too-large` (`transport.envelope-too-large`) for a carried introduction `envelope` over its cap: 4,096
+bytes, or 16,384 when the compact envelope has three `.`-separated parts and the second is unpadded base64url of a JSON
+object that carries `sealed` and whose `dsip.extensions` is an array containing `profile-card/1.0` (§19.4, spec-gap 186).
+A carried envelope that cannot be read that way stays at 4,096.
+
+**Profile cards** (§19.4 `profile-card/1.0`, spec-gap 186). A card is **taken** as the object of its known members
+(`display_name`, `picture`), any other member dropped, and **ignored** whole when it is not a JSON object; when
+`display_name` is present and is not a string of 1 to 256 Unicode code points (not UTF-16 units); or when `picture` is
+present and is not an object of exactly `content_type` and `data`, both strings, with `content_type` `image/jpeg` or
+`image/png` and `data` matching `^[A-Za-z0-9_-]+$`, of a length that is not 1 mod 4, encoding 1 to 4,096 bytes. The
+bytes `data` encodes are counted as ⌊3n/4⌋ for its n characters: the string is not decoded, so its unused trailing bits
+are not looked at, and the image is not parsed. `{}` is a card.
+
 `external-join` checks run `external-join-adds` → `external-join-not-member` → `external-join-removes-other`;
 `blob-replicate` skips run `mode` → `stored` → `too-large` → `not-https`, and `attempt` defaults to 1 of `max_attempts` 5.
 

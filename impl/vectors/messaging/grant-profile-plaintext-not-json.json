@@ -1,0 +1,47 @@
+{
+  "vector": "messaging/grant-profile-plaintext-not-json",
+  "format": 1,
+  "kind": "messaging",
+  "description": "A plaintext that is not JSON.",
+  "spec_ref": [
+    "§19.4"
+  ],
+  "context": {},
+  "input": {
+    "check": "grant-profile-open",
+    "grant": {
+      "dsip": {
+        "core": "1.0",
+        "min_core": "1.0",
+        "profiles": [
+          "messaging/1.0"
+        ],
+        "extensions": [
+          "profile-card/1.0"
+        ],
+        "critical": []
+      },
+      "type": "grant",
+      "id": "01K742SG007SXKESYJFTY185N0",
+      "from": "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn",
+      "to": "did:web:alice.example",
+      "session": "01K742QND0PGXZH7529S36804B",
+      "scope": [
+        "dsip.invite"
+      ],
+      "valid_until": 1760086400,
+      "issued_at": 1760000000,
+      "expires_at": 1760000030,
+      "profile": {
+        "alg": "hpke-base-x25519-sha256-aes128gcm",
+        "enc": "XV6ucAB8l48k-Jw_pGlbuiS9qE5WH01vPARsuq1FUTo",
+        "ct": "4EW4Qu2znt-nDC0ObLcfVK6-xcoV"
+      }
+    },
+    "recipient_ed25519_seed_hex": "2578746844109f4c921992188be2c1362760ee6e62422edd365b214115f90894"
+  },
+  "expect": {
+    "verdict": "reject",
+    "code": "sealed-plaintext-invalid"
+  }
+}

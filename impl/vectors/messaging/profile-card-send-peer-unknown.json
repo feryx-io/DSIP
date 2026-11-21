@@ -1,0 +1,26 @@
+{
+  "vector": "messaging/profile-card-send-peer-unknown",
+  "format": 1,
+  "kind": "messaging",
+  "description": "Nothing says the receiving identity supports the extension: no card.",
+  "spec_ref": [
+    "§19.4",
+    "§11.4"
+  ],
+  "context": {},
+  "input": {
+    "check": "profile-card-send",
+    "sharing": true,
+    "carrier": "grant",
+    "peer": {
+      "listed": [],
+      "document": null,
+      "out_of_band": []
+    },
+    "encoded_size": 600
+  },
+  "expect": {
+    "card": false,
+    "why": "peer-unsupported"
+  }
+}

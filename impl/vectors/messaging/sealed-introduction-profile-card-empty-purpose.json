@@ -1,0 +1,53 @@
+{
+  "vector": "messaging/sealed-introduction-profile-card-empty-purpose",
+  "format": 1,
+  "kind": "messaging",
+  "description": "An introduction that states no purpose and carries a card seals the empty string.",
+  "spec_ref": [
+    "§19.4",
+    "M§14.1"
+  ],
+  "context": {},
+  "input": {
+    "check": "sealed-introduction-open",
+    "payload": {
+      "dsip": {
+        "core": "1.0",
+        "min_core": "1.0",
+        "profiles": [
+          "messaging/1.0"
+        ],
+        "extensions": [
+          "profile-card/1.0"
+        ],
+        "critical": []
+      },
+      "type": "introduction",
+      "id": "01K742SG004BW8VZBVJFY28SCG",
+      "from": "did:web:alice.example",
+      "to": "did:web:example.com:users:bob",
+      "identity": {
+        "display_name": "Alice"
+      },
+      "issued_at": 1760000000,
+      "expires_at": 1760604800,
+      "sealed": {
+        "alg": "hpke-base-x25519-sha256-aes128gcm",
+        "enc": "GOAC6ikHDszB0YqIgQgRY1mm4y_4difNpnnwAKP9N0s",
+        "ct": "motmlIituWq-pYLdx9vJu8Gw_6OUHETdii59_CdYBXsKgBbxbplsXBFloWq17aPnMnO-dHNvioW0JmlqSizLZDWYsH8q4YrqUATD8WKDJxEeS8yYgeGeibH7qYb5ms1AG6HmLSmv5twN-fIzkEuiXFC5Pz_yJQ2YGjjTQ_szdvdaMiiHXmpnI6LavVfPKWNIJ_XelF4sx9Ke4cQyvkBBcPNzJf4uci6NhbGneP1bbJNLFw-OUkMV6wttHlG_MuYEFgP96d2FATKqohjX2PO_BEEievQpAG_UjD8"
+      }
+    },
+    "recipient_ed25519_seed_hex": "debb1447ad694df3f8e947ff249a52e382f5e0f539abf79c4710beefd2f89b64"
+  },
+  "expect": {
+    "verdict": "accept",
+    "purpose": "",
+    "profile": {
+      "display_name": "Alice Example",
+      "picture": {
+        "content_type": "image/jpeg",
+        "data": "_9j_4AIBwTP3IZPvLR6uO2Ja78JQcxYNG-OrVj4E__RpL9S2AgHBM_chk-8tHq47YlrvwlBzFg0b46tWPgT_9A"
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "vector": "messaging/profile-card-send-sharing-off",
+  "format": 1,
+  "kind": "messaging",
+  "description": "A card leaves a device only by its user's standing choice.",
+  "spec_ref": [
+    "§19.4",
+    "§11.4"
+  ],
+  "context": {},
+  "input": {
+    "check": "profile-card-send",
+    "sharing": false,
+    "carrier": "grant",
+    "peer": {
+      "listed": [
+        "profile-card/1.0"
+      ],
+      "document": null,
+      "out_of_band": []
+    },
+    "encoded_size": 600
+  },
+  "expect": {
+    "card": false,
+    "why": "sharing-off"
+  }
+}

@@ -5570,14 +5570,30 @@ Open:
 - Whether a card may also travel as Messaging content ((b)) between identities that already share a conversation.
 - A recorded video greeting on an introduction (asked 2026-11-20): too large for any inline cap, so it would be an
   encrypted blob by reference. Its own gap if wanted.
-- Not yet done: the `grant` schema's `profile`, the semantic size rule, vectors, impl-ts, dsip-rs, the app.
+- The endpoint traces (kind `state`) do not carry cards: a card rides the grant or introduction the application
+  builds, and the checks below are what a client is measured by.
+- Not yet done: the app (two switches under Me, and its share link stating support).
 
-Vectors to write: an introduction with `sealed` and the extension between 4,097 and 16,384 bytes (accepted), one
-over 16,384, one with `sealed` and no extension over 4,096, and one without `sealed` over 4,096 (each
-`introduction-too-large`); the same at a mailbox deposit; a sealed introduction that opens to a purpose and a card;
-a grant with a valid `profile`; cards over the picture limit, of an unlisted type, with a name too long, not an
-object (each ignored, the carrier accepted); a grant `profile` sealed to another identity or bound to another grant
-id (ignored); a card with an unknown member (taken, the member dropped).
+**Fixed while writing the vectors (2026-11-21), each now in §19.4 or the vectors README:**
+
+- A card on an introduction or a grant that does not list `profile-card/1.0` is **ignored** (considered: taken
+  anyway, which leaves the MUST to list it without effect; refusing the carrier, which contradicts rule 8).
+- The picture's bytes are counted from the length of `data`, ⌊3n/4⌋. Decoding it would make the verdict depend on
+  whether a base64 decoder tolerates unused trailing bits, which differs between libraries.
+- A mailbox reads the payload of a carried compact envelope for `sealed` and the extension to pick the cap; one it
+  cannot read stays at 4,096.
+- `introduction_max_bytes` is an integer of at least 4,096 (`hello` schema).
+- The sealed plaintext of an introduction, and of a grant's `profile`, is parsed as §10.3 JSON, as a sealed body's
+  already was (§10.4). Before this the Python harness read a sealed purpose with a byte-order mark, or in UTF-16,
+  and dsip-rs and impl-ts did not: found by probing the three with generated cards.
+
+**Vectors (70, hand-authored):** `payload/grant-profile-*`, `payload/hello-relay-introduction-max-bytes*`,
+`semantic/introduction-card-size-*`, `semantic/introduction-sealed-unlisted-size-over-4096`,
+`semantic/introduction-listed-unsealed-size-over-4096`, `envelope/introduction-card-*`,
+`envelope/introduction-sealed-unlisted-too-large`, `messaging/sealed-introduction-profile-card-*`,
+`messaging/sealed-introduction-extension-listed-no-card`, `messaging/grant-profile-*` (check `grant-profile-open`),
+`messaging/profile-card-send-*` (check `profile-card-send`, the sender's rule) and
+`messaging/deposit-introduction-card-*`, `-sealed-unlisted-`, `-listed-unsealed-`. Python, impl-ts and dsip-rs agree.
 
 ## 187. §13.3 — whether a cancel the attempt does not act on keeps the relay holding the attempt
 
@@ -5601,3 +5617,27 @@ count only by the order of two statements.
 `cancel` from the initiator addressed to a device that is no leg of the attempt does not restart the count. Vector
 `state/relay-cancel-to-no-leg-does-not-keep-the-attempt` (hand-authored) pins the trace. Python changed
 (`dsipvec/relay.py`); impl-ts already read it so; dsip-rs follows with the pin.
+
+## 188. §10.3 — whether JSON holding a lone surrogate is a payload
+
+**Found** 2026-11-21, probing the three implementations with generated profile cards (spec-gap 186). **Open.**
+
+§10.3 says a payload is UTF-8 JSON and says nothing of a string that holds a lone surrogate, which JSON's grammar
+allows as an escape: `{"display_name": "\ud83d"}`. The three disagree. dsip-rs (serde_json) refuses the text, so the
+payload is `payload-not-json`, and a sealed plaintext `sealed-plaintext-invalid`. The Python harness and impl-ts
+parse it and carry the unpaired code unit on. Observed on sealed plaintexts (a sealed purpose, a card), which use
+the §10.3 parse; the same parse reads every envelope payload, so a signed message with such a string is accepted by
+two implementations and refused by the third. No vector holds one, which is why the suite did not see it.
+
+A raw lone surrogate (bytes `ED A0 80`) is not UTF-8 and all three already refuse it. The question is the escape.
+
+Choices:
+
+- **(a) Refuse.** A payload, or a sealed plaintext, in which any string or member name holds a lone surrogate,
+  escaped or not, is not JSON for §10.3: `payload-not-json`. This is I-JSON's rule (RFC 7493 §2.1), what did:webvh
+  log lines already get (spec-gap 101 item 4), and what the deployed Rust does. Python and impl-ts change.
+- **(b) Accept.** The text is JSON by RFC 8259, and the string is carried as it is. dsip-rs changes, and needs a
+  JSON parser that keeps unpaired surrogates, which Rust strings cannot hold.
+
+Recommended: **(a)**. A string that cannot be encoded as UTF-8 cannot be shown, compared or re-sent faithfully, and
+(b) is not implementable in every language. Until decided no vector pins either reading.

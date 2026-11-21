@@ -8,6 +8,7 @@ import { didOf, type Json, type JsonObject } from "./did.js";
 import { b64urlDecode } from "./encoding.js";
 import { decodePayload } from "./envelope.js";
 import { HPKE_SEALED_ALG, hpkeOpen } from "./hpke.js";
+import { introductionCap } from "./profile-card.js";
 import { effectiveAnsweredBy, effectivePresenceState, effectiveReason, effectiveStatus, isRegisteredPresenceState } from "./registry.js";
 import type { SchemaSet } from "./schema.js";
 import { reject, type Verdict } from "./verdict.js";
@@ -43,8 +44,6 @@ export interface SemanticContext {
   router?: boolean;
 }
 
-/** Spec: §19.4 — an introduction envelope is at most 4,096 encoded bytes. */
-const MAX_INTRODUCTION_BYTES = 4096;
 /** Spec: §9.3 — per-event `expires_in` cap for presence. */
 const MAX_PRESENCE_SUBSCRIPTION_S = 3600;
 
@@ -201,8 +200,8 @@ export function checkSemantics(payload: JsonObject, ctx: SemanticContext): Verdi
   }
   if (type === "introduction") {
     if ("purpose" in payload && "sealed" in payload) return reject("introduction-purpose-and-sealed"); // §19.4
-    if (ctx.encoded_size !== undefined && ctx.encoded_size > MAX_INTRODUCTION_BYTES) {
-      return reject("introduction-too-large"); // §19.4
+    if (ctx.encoded_size !== undefined && ctx.encoded_size > introductionCap(payload)) {
+      return reject("introduction-too-large"); // §19.4: 4,096, or 16,384 with `sealed` and profile-card/1.0
     }
   }
   if (type === "grant" && ctx.known_introductions && !ctx.known_introductions.includes(payload["session"] as string)

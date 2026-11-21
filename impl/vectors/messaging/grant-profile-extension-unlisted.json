@@ -1,0 +1,45 @@
+{
+  "vector": "messaging/grant-profile-extension-unlisted",
+  "format": 1,
+  "kind": "messaging",
+  "description": "A grant that carries profile lists profile-card/1.0; one that does not has its card ignored, before anything is opened.",
+  "spec_ref": [
+    "§19.4"
+  ],
+  "context": {},
+  "input": {
+    "check": "grant-profile-open",
+    "grant": {
+      "dsip": {
+        "core": "1.0",
+        "min_core": "1.0",
+        "profiles": [
+          "messaging/1.0"
+        ],
+        "extensions": [],
+        "critical": []
+      },
+      "type": "grant",
+      "id": "01K742SG0036QS3X8S6QZHFHRN",
+      "from": "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn",
+      "to": "did:web:alice.example",
+      "session": "01K742QND0DYBSXR0C2NRAHDNG",
+      "scope": [
+        "dsip.invite"
+      ],
+      "valid_until": 1760086400,
+      "issued_at": 1760000000,
+      "expires_at": 1760000030,
+      "profile": {
+        "alg": "hpke-base-x25519-sha256-aes128gcm",
+        "enc": "UZzCiZnHNYrCP7M1GQC8xMo8BT9r-eSdlwc9qZIR8DU",
+        "ct": "2dE9YMAHIz7RcVyB8Zty8M89ryXOCpwfmPUvotz7EpVtTTNljDH6inRJ5KJtz-7_aZQZ_OsDtH7DjTvDn9hxLOTt4I8KFa76fFuEVz3F8dtXl0CzNlC7mygfA1cfIVTU_vrUPQ2b9vK3rwUL6pWZjw-er4KHEPtPtvL3FctS3XWP-ghBobZJUHtU1Rod3bo4Mjb8PvclpWLn1-CBwI76o1N2wJn1rMohLzDNyLPpHVs74wR3_UWSVyy05zWXBx8DrYwKAxlj8CoXjzw"
+      }
+    },
+    "recipient_ed25519_seed_hex": "2578746844109f4c921992188be2c1362760ee6e62422edd365b214115f90894"
+  },
+  "expect": {
+    "verdict": "reject",
+    "code": "profile-extension-unlisted"
+  }
+}

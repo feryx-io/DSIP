@@ -43,6 +43,7 @@ import { downgradeSummary, telCallerLine, verificationBasis } from "./trust.js";
 import type { TnContext } from "./tn/binding.js";
 import { runTnBinding } from "./tn/claim.js";
 import { reject, type Verdict } from "./verdict.js";
+import { openGrantProfile, profileCardSend, type CardSendInput } from "./profile-card.js";
 
 const DEFAULT_VECTORS = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "impl", "vectors");
 const schemas = new SchemaSet();
@@ -214,6 +215,10 @@ function messaging(v: Vector): Json | undefined {
       return { x25519_pk_hex: mcrypto.x25519FromEd25519Seed(hex(i["ed25519_seed_hex"])).pk.toString("hex") };
     case "sealed-introduction-open":
       return mcrypto.openIntroduction(i["payload"] as JsonObject, mcrypto.x25519FromEd25519Seed(hex(i["recipient_ed25519_seed_hex"])).sk);
+    case "grant-profile-open":
+      return openGrantProfile(i["grant"] as JsonObject, mcrypto.x25519FromEd25519Seed(hex(i["recipient_ed25519_seed_hex"])).sk);
+    case "profile-card-send":
+      return profileCardSend(i as unknown as CardSendInput);
     case "introduction": {
       // the profile's introduction is the core message: stage 13 shape, then the stage 14 rule
       const p = i["payload"] as JsonObject;

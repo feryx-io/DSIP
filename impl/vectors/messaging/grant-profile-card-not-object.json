@@ -1,0 +1,47 @@
+{
+  "vector": "messaging/grant-profile-card-not-object",
+  "format": 1,
+  "kind": "messaging",
+  "description": "A card that is not an object is ignored.",
+  "spec_ref": [
+    "§19.4"
+  ],
+  "context": {},
+  "input": {
+    "check": "grant-profile-open",
+    "grant": {
+      "dsip": {
+        "core": "1.0",
+        "min_core": "1.0",
+        "profiles": [
+          "messaging/1.0"
+        ],
+        "extensions": [
+          "profile-card/1.0"
+        ],
+        "critical": []
+      },
+      "type": "grant",
+      "id": "01K742SG00Q2YN3D4RKYE46XDX",
+      "from": "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn",
+      "to": "did:web:alice.example",
+      "session": "01K742QND0W4AJZQBJ7RHV64K8",
+      "scope": [
+        "dsip.invite"
+      ],
+      "valid_until": 1760086400,
+      "issued_at": 1760000000,
+      "expires_at": 1760000030,
+      "profile": {
+        "alg": "hpke-base-x25519-sha256-aes128gcm",
+        "enc": "W7VnCnNMQE8cpPSF4pQQMjeHe4sjxLuDluFhof67WDw",
+        "ct": "pBmM_eyWhFXwQyZVhV8rDYH30y0ZCRUdwdzDQXfuhbhAqg"
+      }
+    },
+    "recipient_ed25519_seed_hex": "2578746844109f4c921992188be2c1362760ee6e62422edd365b214115f90894"
+  },
+  "expect": {
+    "verdict": "reject",
+    "code": "profile-card-invalid"
+  }
+}

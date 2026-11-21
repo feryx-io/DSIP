@@ -1,0 +1,47 @@
+{
+  "vector": "messaging/grant-profile-bound-to-other-grant",
+  "format": 1,
+  "kind": "messaging",
+  "description": "The AAD binds the grant's id, from and to: a card sealed for another grant does not open.",
+  "spec_ref": [
+    "§19.4"
+  ],
+  "context": {},
+  "input": {
+    "check": "grant-profile-open",
+    "grant": {
+      "dsip": {
+        "core": "1.0",
+        "min_core": "1.0",
+        "profiles": [
+          "messaging/1.0"
+        ],
+        "extensions": [
+          "profile-card/1.0"
+        ],
+        "critical": []
+      },
+      "type": "grant",
+      "id": "01K742SG00VTNNMDKE9KJ09G15",
+      "from": "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn",
+      "to": "did:web:alice.example",
+      "session": "01K742QND0ASNQY0C6DS2CT23D",
+      "scope": [
+        "dsip.invite"
+      ],
+      "valid_until": 1760086400,
+      "issued_at": 1760000000,
+      "expires_at": 1760000030,
+      "profile": {
+        "alg": "hpke-base-x25519-sha256-aes128gcm",
+        "enc": "0tQ4DxcdDS4qd8HnOnI108OSuj5eNRtnPueqai6LaQk",
+        "ct": "ZiTcK00fTed0CB0axRKwqt-2bCzDMy6eqNAeeWDjlcZawgo30xuZbJu9o4gWlojTeusDOH9EupPdMCEqdh-y8Sz7Vx8BZ3SRO10bbANrJQaaCfrbXLigzQ844pASqQTA4mOKqXwg260pPgnJh_3Lv3al-qcDkOZQhWhHoJwsaBccZjiP9VrcPO5ty1o_urJjjBeuni44wK9f-EOdQXu4rnN84XfnHlpmxcs3hrD-PO3C31pbU9iPMDe72O4ueUN5-2OtZEPkdKlZkQ4"
+      }
+    },
+    "recipient_ed25519_seed_hex": "2578746844109f4c921992188be2c1362760ee6e62422edd365b214115f90894"
+  },
+  "expect": {
+    "verdict": "reject",
+    "code": "sealed-open-failed"
+  }
+}

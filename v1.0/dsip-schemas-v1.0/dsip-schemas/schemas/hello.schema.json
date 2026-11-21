@@ -70,6 +70,11 @@
           "items": {
             "type": "string"
           }
+        },
+        "introduction_max_bytes": {
+          "type": "integer",
+          "minimum": 4096,
+          "description": "The largest encoded introduction this service accepts (spec 19.4, profile-card/1.0; 1.x, spec-gap 186). Absent means 4,096."
         }
       },
       "required": [

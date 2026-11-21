@@ -1,0 +1,27 @@
+{
+  "vector": "messaging/profile-card-send-grant-not-capped",
+  "format": 1,
+  "kind": "messaging",
+  "description": "The introduction cap is the introduction's: a grant is bounded by the transport only.",
+  "spec_ref": [
+    "§19.4",
+    "§11.4"
+  ],
+  "context": {},
+  "input": {
+    "check": "profile-card-send",
+    "sharing": true,
+    "carrier": "grant",
+    "peer": {
+      "listed": [
+        "profile-card/1.0"
+      ],
+      "document": null,
+      "out_of_band": []
+    },
+    "encoded_size": 9700
+  },
+  "expect": {
+    "card": true
+  }
+}

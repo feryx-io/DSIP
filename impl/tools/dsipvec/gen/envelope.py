@@ -287,6 +287,19 @@ def vectors() -> list[dict]:
     big = {**intro, "identity": {"display_name": "Carol", "claims": [{"blob": "x" * 4000}]}}
     out.append(env_vector("introduction-too-large", "Encoded introduction envelope exceeds the 4,096-byte core constant.", ["§19.4"],
                           signed(big, "carol-phone"), reject("introduction-too-large")))
+    # profile-card/1.0 (spec-gap 186): a sealed introduction listing the extension, up to 16,384 bytes
+    carded = lambda n: {**{k: v for k, v in intro.items() if k != "purpose"}, "id": uid(f"intro-card-{n}"),
+                        "dsip": {**F.VERSION, "extensions": ["profile-card/1.0"]},
+                        "sealed": {"alg": "hpke-base-x25519-sha256-aes128gcm", "enc": "N_2jVnvb1ijohmjDyNfpfR0SU7bU6m1EwVD3QfG_RDE",
+                                   "ct": "c" * n}}
+    out.append(env_vector("introduction-card-over-4096-accepted",
+                          "A sealed introduction that lists profile-card/1.0 is accepted over 4,096 bytes: about 10,000 here.", ["§19.4"],
+                          signed(carded(6800), "carol-phone"), accept(type="introduction", signer=F.did("carol-phone"), identity=F.did("carol-phone"))))
+    out.append(env_vector("introduction-card-too-large", "Over 16,384 bytes it is refused, extension or not.", ["§19.4"],
+                          signed(carded(12300), "carol-phone"), reject("introduction-too-large")))
+    out.append(env_vector("introduction-sealed-unlisted-too-large", "The same sealed body without the extension is held to 4,096.", ["§19.4"],
+                          signed({**carded(6800), "id": uid("intro-card-unlisted"), "dsip": F.VERSION}, "carol-phone"),
+                          reject("introduction-too-large")))
     from .presence_vectors import envelope_vectors
     from . import presence_sealed
     out.extend(envelope_vectors())

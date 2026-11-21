@@ -1,0 +1,47 @@
+{
+  "vector": "messaging/grant-profile-unsupported-alg",
+  "format": 1,
+  "kind": "messaging",
+  "description": "Another alg is ignored before any attempt to open.",
+  "spec_ref": [
+    "§19.4"
+  ],
+  "context": {},
+  "input": {
+    "check": "grant-profile-open",
+    "grant": {
+      "dsip": {
+        "core": "1.0",
+        "min_core": "1.0",
+        "profiles": [
+          "messaging/1.0"
+        ],
+        "extensions": [
+          "profile-card/1.0"
+        ],
+        "critical": []
+      },
+      "type": "grant",
+      "id": "01K742SG00EH7A24XWH3564BQW",
+      "from": "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn",
+      "to": "did:web:alice.example",
+      "session": "01K742QND0XHAV2KWPXVNDZ34D",
+      "scope": [
+        "dsip.invite"
+      ],
+      "valid_until": 1760086400,
+      "issued_at": 1760000000,
+      "expires_at": 1760000030,
+      "profile": {
+        "alg": "hpke-base-p256-sha256-aes128gcm",
+        "enc": "CAjCgLV0oknFrHeEY_KfT8kWvyTadk2oNIHX2gJ_zmI",
+        "ct": "EzBi6ZXTG10-cR5v39Qabdz1tw0HLRP4eO-lO_19f7Exz1MXDo5BtiPuSV-v_JbaT1oOUWLLzHm7hjqK4kuuLQ-Mu4LOr98hf8qj9lXIv-z-dBikDWZQT_n6xWGUK_VzzePs6M_AhqCnHkUmAyy1_AmfaBpEqxpawxUX8QIyrApgDPlG2lKMaIJe8y0DP3rBnijyGQGwfB2nAC_lxOSPziv4yqaBd_YCpEQp0dTQpjUA3yabKbQq4Aa9v_pMy9O5kYR953xcLaYZ4YA"
+      }
+    },
+    "recipient_ed25519_seed_hex": "2578746844109f4c921992188be2c1362760ee6e62422edd365b214115f90894"
+  },
+  "expect": {
+    "verdict": "reject",
+    "code": "sealed-alg-unsupported"
+  }
+}

@@ -219,6 +219,20 @@ def vectors() -> list[dict]:
                   intro, reject("introduction-too-large"), ctx={"encoded_size": 4097}))
     out.append(sv("introduction-size-at-cap", "Encoded size exactly 4,096 is allowed.", ["§19.4"],
                   intro, accept(), ctx={"encoded_size": 4096}))
+    # profile-card/1.0 (spec-gap 186): 16,384 for an introduction that carries sealed and lists the extension
+    carded = {k: v for k, v in intro.items() if k != "purpose"}
+    carded = {**carded, "dsip": {**F.VERSION, "extensions": ["profile-card/1.0"]},
+              "sealed": {"alg": "hpke-base-x25519-sha256-aes128gcm", "enc": "N_2jVnvb1ijohmjDyNfpfR0SU7bU6m1EwVD3QfG_RDE",
+                         "ct": "-ThVi11y8aI4ELS-KrT4QzGswC_JeavFOlKughijVamGh3CsjNB76ofhPFEq"}}
+    out.append(sv("introduction-card-size-over-4096", "An introduction that carries sealed and lists profile-card/1.0 may exceed 4,096.",
+                  ["§19.4"], carded, accept(), ctx={"encoded_size": 4097}))
+    out.append(sv("introduction-card-size-at-cap", "Exactly 16,384 is allowed.", ["§19.4"], carded, accept(), ctx={"encoded_size": 16384}))
+    out.append(sv("introduction-card-size-over-cap", "16,385 is not.", ["§19.4"], carded, reject("introduction-too-large"),
+                  ctx={"encoded_size": 16385}))
+    out.append(sv("introduction-sealed-unlisted-size-over-4096", "sealed without the extension stays at 4,096.", ["§19.4"],
+                  {**carded, "dsip": F.VERSION}, reject("introduction-too-large"), ctx={"encoded_size": 4097}))
+    out.append(sv("introduction-listed-unsealed-size-over-4096", "The extension without sealed stays at 4,096.", ["§19.4"],
+                  {**intro, "dsip": carded["dsip"]}, reject("introduction-too-large"), ctx={"encoded_size": 4097}))
     from .presence_vectors import semantic_vectors
     from . import presence_sealed
     out.extend(semantic_vectors())

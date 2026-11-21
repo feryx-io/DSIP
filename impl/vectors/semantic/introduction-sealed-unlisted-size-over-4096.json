@@ -1,0 +1,53 @@
+{
+  "vector": "semantic/introduction-sealed-unlisted-size-over-4096",
+  "format": 1,
+  "kind": "semantic",
+  "description": "sealed without the extension stays at 4,096.",
+  "spec_ref": [
+    "§19.4"
+  ],
+  "context": {
+    "now": 1760000000,
+    "supported": {
+      "core": "1.0",
+      "profiles": [
+        "interactive-media/1.0",
+        "verified-broadcast/1.0"
+      ],
+      "extensions": []
+    },
+    "encoded_size": 4097
+  },
+  "input": {
+    "payload": {
+      "dsip": {
+        "core": "1.0",
+        "min_core": "1.0",
+        "profiles": [
+          "interactive-media/1.0"
+        ],
+        "extensions": [],
+        "critical": []
+      },
+      "type": "introduction",
+      "id": "01K742SG00Z41R1RN63EB956CH",
+      "from": "did:key:z6Mks5FEYf8Z7WygGqzyejjnf3VHupKMYBv4bKgEfW52wqmL",
+      "to": "did:web:example.com:users:bob",
+      "identity": {
+        "display_name": "Carol Nguyen",
+        "claims": []
+      },
+      "issued_at": 1760000000,
+      "expires_at": 1760604800,
+      "sealed": {
+        "alg": "hpke-base-x25519-sha256-aes128gcm",
+        "enc": "N_2jVnvb1ijohmjDyNfpfR0SU7bU6m1EwVD3QfG_RDE",
+        "ct": "-ThVi11y8aI4ELS-KrT4QzGswC_JeavFOlKughijVamGh3CsjNB76ofhPFEq"
+      }
+    }
+  },
+  "expect": {
+    "verdict": "reject",
+    "code": "introduction-too-large"
+  }
+}

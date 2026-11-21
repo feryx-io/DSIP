@@ -1,0 +1,47 @@
+{
+  "vector": "messaging/grant-profile-sealed-as-purpose",
+  "format": 1,
+  "kind": "messaging",
+  "description": "The info string separates a card from a sealed purpose.",
+  "spec_ref": [
+    "§19.4"
+  ],
+  "context": {},
+  "input": {
+    "check": "grant-profile-open",
+    "grant": {
+      "dsip": {
+        "core": "1.0",
+        "min_core": "1.0",
+        "profiles": [
+          "messaging/1.0"
+        ],
+        "extensions": [
+          "profile-card/1.0"
+        ],
+        "critical": []
+      },
+      "type": "grant",
+      "id": "01K742SG00VXZQEBGZM8DVXTSS",
+      "from": "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn",
+      "to": "did:web:alice.example",
+      "session": "01K742QND05H0BZEHDFCWJGAKF",
+      "scope": [
+        "dsip.invite"
+      ],
+      "valid_until": 1760086400,
+      "issued_at": 1760000000,
+      "expires_at": 1760000030,
+      "profile": {
+        "alg": "hpke-base-x25519-sha256-aes128gcm",
+        "enc": "48jElyv_LMDfQ95FIg4_FwIByl9tsWR2Anhi3alRn2Y",
+        "ct": "ZeHl8fLC6UlrvvetInyWnLCod3bevuvgcurD9Ngabx5qklgaPYhdfj8_c6XZIY298JE7DXhzA9Mz19fkUyRKr0gj-jlhMfMtkkpqtH5s1iSdpbT9fvZLbfBkgDqNqPijTdLvFW9E3pegjLGWgdk0GZMCOh4CYCeP7QndE_JFrcBoEzsZj01AhWEv0cQTNeR21rzIq9h2Yir2JtALU5c-6ES9HE_3vfosWu-RHdeUodll_sId6t1C4u5UzyvrVtFI4ZWk8PSErMBQpmk"
+      }
+    },
+    "recipient_ed25519_seed_hex": "2578746844109f4c921992188be2c1362760ee6e62422edd365b214115f90894"
+  },
+  "expect": {
+    "verdict": "reject",
+    "code": "sealed-open-failed"
+  }
+}

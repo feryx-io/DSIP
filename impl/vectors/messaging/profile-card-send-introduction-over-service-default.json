@@ -1,0 +1,28 @@
+{
+  "vector": "messaging/profile-card-send-introduction-over-service-default",
+  "format": 1,
+  "kind": "messaging",
+  "description": "An introduction over 4,096 bytes is not handed to a service that advertises no introduction_max_bytes: it goes without the card.",
+  "spec_ref": [
+    "§19.4",
+    "§11.4"
+  ],
+  "context": {},
+  "input": {
+    "check": "profile-card-send",
+    "sharing": true,
+    "carrier": "introduction",
+    "peer": {
+      "listed": [],
+      "document": null,
+      "out_of_band": [
+        "profile-card/1.0"
+      ]
+    },
+    "encoded_size": 9700
+  },
+  "expect": {
+    "card": false,
+    "why": "service-cap"
+  }
+}

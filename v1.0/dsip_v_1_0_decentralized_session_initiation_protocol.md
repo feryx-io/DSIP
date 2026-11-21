@@ -2006,7 +2006,7 @@ An `invite` from an identity holding no grant (and matching no other allow polic
 
 A `did:key` identity has no document, so the first and the last apply to it.
 
-An introduction over 4,096 bytes is also refused by a holder that does not implement the extension. A relay, mailbox or other service that accepts such introductions says so in its `hello` `capabilities` (§13.2) with `introduction_max_bytes` (an integer; absent means 4,096), and a sender MUST NOT hand an introduction to a service whose advertised value is smaller than the encoded envelope. A holder that implements the extension applies the cap above and every other rule of this section unchanged: the rate limits and the bound of 16 held per inbox count a larger introduction as one.
+An introduction over 4,096 bytes is also refused by a holder that does not implement the extension. A relay, mailbox or other service that accepts such introductions says so in its `hello` `capabilities` (§13.2) with `introduction_max_bytes` (an integer of at least 4,096; absent means 4,096), and a sender MUST NOT hand an introduction to a service whose advertised value is smaller than the encoded envelope. A holder that implements the extension reads the payload of an introduction it holds or carries for `sealed` and the extension, applies the cap above and every other rule of this section unchanged: the rate limits and the bound of 16 held per inbox count a larger introduction as one.
 
 A sender that may not send its card sends the introduction or the grant without it.
 
@@ -2017,6 +2017,8 @@ A sender that may not send its card sends the introduction or the grant without 
 - A card is **ignored** when it is not a JSON object, when `display_name` is present and is not a string of 1 to 256 characters, or when `picture` is present and is not an object of exactly the two strings above, names another `content_type`, or holds `data` that is not unpadded base64url of 1 to 4,096 bytes. A card is taken whole or not at all.
 - A sealed plaintext is still exactly `purpose`, optionally with `profile`: any other member refuses it as before. A `profile` member whose card is ignored leaves the purpose as it is.
 - A grant's `profile` that names another `alg`, does not open, or opens to something other than `{"profile": {…}}` is ignored, and the grant is held as if it carried none, exactly as for `presence_keys` it cannot open.
+- A card on an introduction or a grant that does not list `profile-card/1.0` in `dsip.extensions` is ignored.
+- The bytes of `data` are counted from its length, ⌊3n/4⌋ for n characters; a receiver need not decode a picture to refuse it, and it does not parse the image to take the card.
 
 **Showing it.** A receiver renders a card as the sending identity's own claim, labelled as unverified, beside the identity itself, and an introduction's card only in the requests surface. Nothing a card carries is shown as verified: a logo or a brand is verified only as §18.2 says. A client MAY let its user hide pictures on requests from identities the user does not know. A picture the receiving user chose for a contact takes precedence over that contact's card.
 

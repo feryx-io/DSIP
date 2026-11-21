@@ -1,0 +1,47 @@
+{
+  "vector": "messaging/grant-profile-wrong-recipient",
+  "format": 1,
+  "kind": "messaging",
+  "description": "Only the grantee identity's key opens it. The card is ignored and the grant stands.",
+  "spec_ref": [
+    "§19.4"
+  ],
+  "context": {},
+  "input": {
+    "check": "grant-profile-open",
+    "grant": {
+      "dsip": {
+        "core": "1.0",
+        "min_core": "1.0",
+        "profiles": [
+          "messaging/1.0"
+        ],
+        "extensions": [
+          "profile-card/1.0"
+        ],
+        "critical": []
+      },
+      "type": "grant",
+      "id": "01K742SG00V1990GCNJZ0B13Y6",
+      "from": "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn",
+      "to": "did:web:alice.example",
+      "session": "01K742QND0RB12STMYNCABBX0F",
+      "scope": [
+        "dsip.invite"
+      ],
+      "valid_until": 1760086400,
+      "issued_at": 1760000000,
+      "expires_at": 1760000030,
+      "profile": {
+        "alg": "hpke-base-x25519-sha256-aes128gcm",
+        "enc": "LpGrkLzT5B9zkbtlWQNQk6NHDINXzfxT9f6UMZieZ28",
+        "ct": "g_HyAKMFBu-esBOfALuW0oFTPGkSJzMfZfEWhneT6u1TMSzRXFRfYePhquO6VXGIAloCc6vwz0Df2k7f1Wl0QWSN9aBi4sCWsVCnHApfA4pm1HCZ5cKG6YCXZWSrsS-060JPHqQDpFe9fDDefsRmsjgdMPCVcWSxkodEfPgoIVmO6HiNVXo8MGF5j5NYCzlidfR_N707GPmnq4z3NQdBmqDbHu6-ehGbzXhGVDnfgc2dCPkSfzP8wazFjk5iKOrF-b0yZsxBkc8K130"
+      }
+    },
+    "recipient_ed25519_seed_hex": "6d625667ccb5aead42b40c68bae1134448b784c5393fde355546383f543fea96"
+  },
+  "expect": {
+    "verdict": "reject",
+    "code": "sealed-open-failed"
+  }
+}

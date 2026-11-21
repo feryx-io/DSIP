@@ -1,0 +1,29 @@
+{
+  "vector": "messaging/profile-card-send-introduction-over-service-cap",
+  "format": 1,
+  "kind": "messaging",
+  "description": "Nor to one that advertises less than the envelope.",
+  "spec_ref": [
+    "§19.4",
+    "§11.4"
+  ],
+  "context": {},
+  "input": {
+    "check": "profile-card-send",
+    "sharing": true,
+    "carrier": "introduction",
+    "peer": {
+      "listed": [],
+      "document": null,
+      "out_of_band": [
+        "profile-card/1.0"
+      ]
+    },
+    "encoded_size": 9700,
+    "service_introduction_max_bytes": 8192
+  },
+  "expect": {
+    "card": false,
+    "why": "service-cap"
+  }
+}

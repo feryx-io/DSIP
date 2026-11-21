@@ -8,13 +8,13 @@
 import type { JsonObject } from "../did.js";
 import { reject, type Verdict } from "../verdict.js";
 import { messagingSchemas } from "./schemas.js";
+import { introductionCapCompact } from "../profile-card.js";
 
 /** Spec: M§5.1 */
 export const MAX_MLS_BYTES = 24576;
 const MAX_LIFETIME_S = 60;
 const MAX_EPHEMERAL_LIFETIME_S = 10;
 /** Spec: §19.4 */
-const MAX_INTRODUCTION_BYTES = 4096;
 
 /** Profile message types (the other schemas in the set are content objects and documents). */
 const MESSAGE_TYPES = ["deposit", "accepted", "sync", "items", "key-packages", "key-package-fetch", "blob-put", "mailbox-config"];
@@ -72,7 +72,8 @@ export function checkMessage(payload: JsonObject): Verdict {
       if (typeof value === "string" && decodedLength(value) > MAX_MLS_BYTES) return reject("object-too-large", "mailbox.object-too-large");
     }
     if (typeof payload["envelope"] === "string" && payload["class"] === "introduction") {
-      if (Buffer.byteLength(payload["envelope"], "utf8") > MAX_INTRODUCTION_BYTES) {
+      // §19.4: 4,096 bytes, or 16,384 for one that carries `sealed` and lists profile-card/1.0
+      if (Buffer.byteLength(payload["envelope"], "utf8") > introductionCapCompact(payload["envelope"])) {
         return reject("introduction-too-large", "transport.envelope-too-large");
       }
     }

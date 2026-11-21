@@ -1,0 +1,46 @@
+{
+  "vector": "messaging/sealed-introduction-profile-card-without-purpose",
+  "format": 1,
+  "kind": "messaging",
+  "description": "The plaintext still holds purpose: a card alone is refused.",
+  "spec_ref": [
+    "§19.4",
+    "M§14.1"
+  ],
+  "context": {},
+  "input": {
+    "check": "sealed-introduction-open",
+    "payload": {
+      "dsip": {
+        "core": "1.0",
+        "min_core": "1.0",
+        "profiles": [
+          "messaging/1.0"
+        ],
+        "extensions": [
+          "profile-card/1.0"
+        ],
+        "critical": []
+      },
+      "type": "introduction",
+      "id": "01K742SG00CBYG8JR9JM26ZS16",
+      "from": "did:web:alice.example",
+      "to": "did:web:example.com:users:bob",
+      "identity": {
+        "display_name": "Alice"
+      },
+      "issued_at": 1760000000,
+      "expires_at": 1760604800,
+      "sealed": {
+        "alg": "hpke-base-x25519-sha256-aes128gcm",
+        "enc": "GOAC6ikHDszB0YqIgQgRY1mm4y_4difNpnnwAKP9N0s",
+        "ct": "motmk5W7v3W-pYLdntuB8pCw4a2LKkbZxXF_vSUeLWQTjxKodI9sXAQr_mi7jO3-OHXqRHlrxc_4OGklBWDPaDiYmnk2s9XoEQaC92GWJRpFfsiElqaQk7O9oZ_535JPU466IFS3h7cr79ICgTjYLnnMB1azK3aQDFu7OuMKXthYJzO9Yw5HdtC9qFTcHQNVUpn2rkoLrPSp1bt6hjFjdoVNAc4VWiGnlNr4PNcebtBFKxqsehYWszB3UyoWOH5PNsrzp5k5zbSCeV8"
+      }
+    },
+    "recipient_ed25519_seed_hex": "debb1447ad694df3f8e947ff249a52e382f5e0f539abf79c4710beefd2f89b64"
+  },
+  "expect": {
+    "verdict": "reject",
+    "code": "sealed-plaintext-invalid"
+  }
+}

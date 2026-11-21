@@ -1,0 +1,28 @@
+{
+  "vector": "messaging/profile-card-send-introduction-at-service-cap",
+  "format": 1,
+  "kind": "messaging",
+  "description": "An envelope of exactly the advertised size is handed over.",
+  "spec_ref": [
+    "§19.4",
+    "§11.4"
+  ],
+  "context": {},
+  "input": {
+    "check": "profile-card-send",
+    "sharing": true,
+    "carrier": "introduction",
+    "peer": {
+      "listed": [],
+      "document": null,
+      "out_of_band": [
+        "profile-card/1.0"
+      ]
+    },
+    "encoded_size": 16384,
+    "service_introduction_max_bytes": 16384
+  },
+  "expect": {
+    "card": true
+  }
+}

@@ -76,6 +76,35 @@
         "ct"
       ],
       "additionalProperties": false
+    },
+    "profile": {
+      "type": "object",
+      "description": "Extension profile-card/1.0 (spec 19.4; 1.x, spec-gap 186): the grantor's profile card, HPKE-sealed to the grantee identity's key agreement key. The plaintext is {\"profile\": {display_name?, picture?}}. A grant with profile lists profile-card/1.0 in dsip.extensions, and is sent only to a grantee known to support the extension.",
+      "properties": {
+        "alg": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Sealing algorithm; hpke-base-x25519-sha256-aes128gcm."
+        },
+        "enc": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "description": "HPKE encapsulated key, base64url."
+        },
+        "ct": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "description": "HPKE ciphertext, base64url."
+        }
+      },
+      "required": [
+        "alg",
+        "enc",
+        "ct"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [
