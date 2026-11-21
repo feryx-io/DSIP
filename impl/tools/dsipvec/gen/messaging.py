@@ -1970,6 +1970,8 @@ def mls_layer_vectors():
          accept(effective={"kind": "direct"}))
     conv("not-utf8", "Extension data that is not UTF-8.", b"\xff\xfe{}", reject("payload-not-utf8"))
     conv("not-json", "Extension data that is not a JSON object.", b"[1,2]", reject("payload-not-json"))
+    conv("lone-surrogate", "Extension data whose string holds a lone surrogate escape is not §10.3 JSON (spec-gap 188).",
+         json.dumps(ext, separators=(",", ":")).encode()[:-1] + b',"x_note":"\\ud83d"}', reject("payload-not-json"))
     conv("float", "A float anywhere violates §10.3.", json.dumps({**ext, "version": 1.5}).encode(), reject("payload-float"))
     conv("missing-hub", "The hub is required.", json.dumps({"conversation": CONV, "kind": "group"}).encode(), reject("schema-invalid"))
 
@@ -2361,6 +2363,154 @@ def first_contact_vectors():
        reject("sealed-plaintext-invalid"))
     so("sealed-introduction-plain-purpose-passes-through", "An unsealed introduction yields its purpose unchanged.",
        intro("plain", purpose="Hello"), accept(purpose="Hello"))
+    # --- profile cards (§19.4, extension profile-card/1.0; spec-gap 186)
+    EXT = "profile-card/1.0"
+    P = ["§19.4", "M§14.1"]
+    with_ext = lambda p: {**p, "dsip": {**p["dsip"], "extensions": [EXT]}}
+    pic_bytes = lambda n: (b"\xff\xd8\xff\xe0" + hashlib.sha256(b"dsip-vector:picture").digest() * 129)[:n]
+    pic = lambda n, ct="image/jpeg": {"content_type": ct, "data": b64url_encode(pic_bytes(n))}
+    name = "Alice Example"
+    card = {"display_name": name, "picture": pic(64)}
+    body = lambda c, purpose=purpose, **more: json.dumps({"purpose": purpose, "profile": c, **more}).encode()
+    cardv = lambda vid, desc, c, expect_card, purpose=purpose: so(
+        vid, desc, sealed(with_ext(intro(vid)), body(c, purpose)),
+        accept(purpose=purpose, profile=expect_card) if expect_card is not None else accept(purpose=purpose, profile_ignored=True),
+        refs=P)
+    cardv("sealed-introduction-profile-card-opens",
+          "With profile-card/1.0 the sealed plaintext holds the introducer's card beside the purpose: a name and a picture.",
+          card, card)
+    cardv("sealed-introduction-profile-card-name-only", "A card may be a name alone.", {"display_name": name}, {"display_name": name})
+    cardv("sealed-introduction-profile-card-picture-only", "Or a picture alone.", {"picture": pic(64, "image/png")},
+          {"picture": pic(64, "image/png")})
+    cardv("sealed-introduction-profile-card-empty-purpose",
+          "An introduction that states no purpose and carries a card seals the empty string.", card, card, purpose="")
+    cardv("sealed-introduction-profile-card-empty", "A card with no member is a card: it claims nothing.", {}, {})
+    cardv("sealed-introduction-profile-card-unknown-member-dropped",
+          "A receiver ignores card members it does not know: the card is taken without them.",
+          {**card, "pronouns": "she/her"}, card)
+    cardv("sealed-introduction-profile-card-picture-at-limit", "A picture of exactly 4,096 bytes is taken.",
+          {"picture": pic(4096)}, {"picture": pic(4096)})
+    cardv("sealed-introduction-profile-card-picture-over-limit",
+          "A picture of 4,097 bytes: the card is ignored and the purpose stands.", {"display_name": name, "picture": pic(4097)}, None)
+    cardv("sealed-introduction-profile-card-picture-type-unlisted", "A picture is image/jpeg or image/png; any other type ignores the card.",
+          {"picture": pic(64, "image/gif")}, None)
+    cardv("sealed-introduction-profile-card-picture-extra-member", "picture is exactly content_type and data.",
+          {"picture": {**pic(64), "width": 64}}, None)
+    cardv("sealed-introduction-profile-card-picture-without-data", "A picture without data ignores the card.",
+          {"picture": {"content_type": "image/png"}}, None)
+    cardv("sealed-introduction-profile-card-picture-padded", "data is unpadded base64url: padding ignores the card.",
+          {"picture": {"content_type": "image/png", "data": "iVBORw=="}}, None)
+    cardv("sealed-introduction-profile-card-picture-bad-length", "A base64url string of length 1 mod 4 encodes nothing.",
+          {"picture": {"content_type": "image/png", "data": "iVBOR"}}, None)
+    cardv("sealed-introduction-profile-card-picture-empty", "A picture is at least one byte.",
+          {"picture": {"content_type": "image/png", "data": ""}}, None)
+    cardv("sealed-introduction-profile-card-name-at-limit",
+          "display_name is at most 256 characters, counted as Unicode code points: 256 characters outside the BMP are taken.",
+          {"display_name": "\U0001F600" * 256}, {"display_name": "\U0001F600" * 256})
+    cardv("sealed-introduction-profile-card-name-too-long", "257 characters ignore the card.", {"display_name": "x" * 257}, None)
+    cardv("sealed-introduction-profile-card-name-empty", "display_name is at least one character.", {"display_name": ""}, None)
+    cardv("sealed-introduction-profile-card-name-not-string", "display_name is a string.", {"display_name": 7}, None)
+    cardv("sealed-introduction-profile-card-not-object", "A card that is not a JSON object is ignored.", "Alice Example", None)
+    cardv("sealed-introduction-profile-card-whole-or-nothing",
+          "A card is taken whole or not at all: a good name with a bad picture leaves no name.",
+          {"display_name": name, "picture": pic(64, "image/svg+xml")}, None)
+    so("sealed-introduction-profile-card-extension-unlisted",
+       "A card on an introduction that does not list profile-card/1.0 is ignored; the purpose stands.",
+       sealed(intro("card-unlisted"), body(card)), accept(purpose=purpose, profile_ignored=True), refs=P)
+    so("sealed-introduction-profile-card-without-purpose", "The plaintext still holds purpose: a card alone is refused.",
+       sealed(with_ext(intro("card-alone")), json.dumps({"profile": card}).encode()), reject("sealed-plaintext-invalid"), refs=P)
+    so("sealed-introduction-profile-card-other-member", "purpose and profile are the only members.",
+       sealed(with_ext(intro("card-extra")), body(card, phone="+1")), reject("sealed-plaintext-invalid"), refs=P)
+    so("sealed-introduction-profile-card-purpose-too-long", "The purpose is checked as before, card or not.",
+       sealed(with_ext(intro("card-long")), body(card, "x" * 281)), reject("purpose-too-long"), refs=P)
+    so("sealed-introduction-extension-listed-no-card",
+       "An introducer that supports the extension lists it on every sealed introduction, with or without a card.",
+       sealed(with_ext(intro("listed-no-card")), json.dumps({"purpose": purpose}).encode()), accept(purpose=purpose), refs=P)
+
+    so("sealed-introduction-plaintext-lone-surrogate",
+       "A sealed plaintext is §10.3 JSON: one whose string holds a lone surrogate escape is refused (spec-gap 188).",
+       sealed(intro("ls"), b'{"purpose":"hi \\ud83d"}'), reject("sealed-plaintext-invalid"), refs=["M§14.1", "§10.3"])
+    so("sealed-introduction-plaintext-float", "And one that holds a float anywhere.",
+       sealed(with_ext(intro("fl")), b'{"purpose":"hi","profile":{"x":1.5}}'), reject("sealed-plaintext-invalid"), refs=["M§14.1", "§10.3"])
+    so("sealed-introduction-plaintext-bom", "And one that starts with a byte-order mark.",
+       sealed(intro("bom"), b'\xef\xbb\xbf{"purpose":"hi"}'), reject("sealed-plaintext-invalid"), refs=["M§14.1", "§10.3"])
+    alice_seed = hashlib.sha256(b"dsip-vector:alice").digest()
+    alice_x = M.x25519_public(M.x25519_from_ed25519_seed(alice_seed))
+
+    def grant_card(label, c=card, pk=alice_x, exts=(EXT,), alg=M.SEALED_ALG, plaintext=None, aad_from=None, info=M.PROFILE_INFO):
+        g = msg("grant", label, BPH, ALICE, session=uid(f"{label}-intro", NOW - 60), scope=["dsip.invite"], valid_until=NOW + 86400)
+        g["dsip"] = {**g["dsip"], "extensions": list(exts)}
+        pt = plaintext if plaintext is not None else json.dumps({"profile": c}).encode()
+        sk_e = M.hpke_derive_sk(hashlib.sha256(b"dsip-vector:ephemeral:" + label.encode()).digest())
+        enc, ct = M.hpke_seal(pk, info, M.sealed_aad(aad_from or g), pt, sk_e)
+        return {**g, "profile": {"alg": alg, "enc": b64url_encode(enc), "ct": b64url_encode(ct)}}
+
+    go = lambda vid, desc, g, expect, seed=alice_seed: out.append(mv(vid, desc, ["§19.4"],
+        {"check": "grant-profile-open", "grant": g, "recipient_ed25519_seed_hex": seed.hex()}, expect))
+    gok = grant_card("gp-ok")
+    go("grant-profile-opens", "A grant carries the grantor's card sealed to the grantee identity: it opens to the card.", gok,
+       accept(profile=card))
+    go("grant-profile-name-only", "A card without a picture.", grant_card("gp-name", {"display_name": "Bob"}),
+       accept(profile={"display_name": "Bob"}))
+    go("grant-profile-absent", "A grant without profile carries no card.",
+       {k: v for k, v in gok.items() if k != "profile"}, accept(profile=None))
+    go("grant-profile-wrong-recipient", "Only the grantee identity's key opens it. The card is ignored and the grant stands.", gok,
+       reject("sealed-open-failed"), seed=mallory_seed)
+    go("grant-profile-bound-to-other-grant", "The AAD binds the grant's id, from and to: a card sealed for another grant does not open.",
+       grant_card("gp-splice", aad_from={**gok, "id": uid("gp-other")}), reject("sealed-open-failed"))
+    go("grant-profile-sealed-as-purpose", "The info string separates a card from a sealed purpose.",
+       grant_card("gp-info", info=M.SEALED_INFO), reject("sealed-open-failed"))
+    go("grant-profile-unsupported-alg", "Another alg is ignored before any attempt to open.",
+       grant_card("gp-alg", alg="hpke-base-p256-sha256-aes128gcm"), reject("sealed-alg-unsupported"))
+    go("grant-profile-plaintext-bare-card", "The plaintext is {\"profile\": card}, not the card itself.",
+       grant_card("gp-bare", plaintext=json.dumps(card).encode()), reject("sealed-plaintext-invalid"))
+    go("grant-profile-plaintext-other-member", "The plaintext holds profile and nothing else.",
+       grant_card("gp-extra", plaintext=json.dumps({"profile": card, "purpose": "hi"}).encode()), reject("sealed-plaintext-invalid"))
+    go("grant-profile-plaintext-not-json", "A plaintext that is not JSON.", grant_card("gp-raw", plaintext=b"hello"),
+       reject("sealed-plaintext-invalid"))
+    go("grant-profile-plaintext-lone-surrogate", "The plaintext is §10.3 JSON: a name holding a lone surrogate escape is not (spec-gap 188).",
+       grant_card("gp-ls", plaintext=b'{"profile":{"display_name":"\\ud83d"}}'), reject("sealed-plaintext-invalid"))
+    go("grant-profile-card-invalid", "A card that fails its rules (a picture over 4,096 bytes) is ignored.",
+       grant_card("gp-big", {"display_name": "Bob", "picture": pic(4097)}), reject("profile-card-invalid"))
+    go("grant-profile-card-not-object", "A card that is not an object is ignored.", grant_card("gp-str", "Bob"),
+       reject("profile-card-invalid"))
+    go("grant-profile-extension-unlisted", "A grant that carries profile lists profile-card/1.0; one that does not has its card ignored, "
+       "before anything is opened.", grant_card("gp-unlisted", exts=()), reject("profile-extension-unlisted"))
+
+    def ps(vid, desc, expect, sharing=True, carrier="grant", listed=(), document=None, oob=(), size=600, cap=None):
+        inp = {"check": "profile-card-send", "sharing": sharing, "carrier": carrier,
+               "peer": {"listed": list(listed), "document": document, "out_of_band": list(oob)}, "encoded_size": size}
+        if cap is not None:
+            inp["service_introduction_max_bytes"] = cap
+        out.append(mv(vid, desc, ["§19.4", "§11.4"], inp, expect))
+    yes, no = {"card": True}, lambda why: {"card": False, "why": why}
+    doc = lambda *exts: {"id": BOB, "dsipExtensions": list(exts)}
+    ps("profile-card-send-grant-to-listing-introducer",
+       "The introduction listed profile-card/1.0, so the grant answering it may carry the grantor's card.", yes, listed=[EXT])
+    ps("profile-card-send-sharing-off", "A card leaves a device only by its user's standing choice.", no("sharing-off"),
+       sharing=False, listed=[EXT])
+    ps("profile-card-send-sharing-off-comes-first", "Consent is decided before anything about the peer.", no("sharing-off"), sharing=False)
+    ps("profile-card-send-peer-unknown", "Nothing says the receiving identity supports the extension: no card.", no("peer-unsupported"))
+    ps("profile-card-send-peer-lists-other-extension", "Another extension says nothing about this one.", no("peer-unsupported"),
+       listed=["sealed-body/1.0"], document=doc("sealed-body/1.0"))
+    ps("profile-card-send-document-lists-it", "The receiving identity's DID document lists it in dsipExtensions.", yes,
+       carrier="introduction", document=doc("sealed-body/1.0", EXT), size=3000)
+    ps("profile-card-send-document-without-array", "A document without dsipExtensions says nothing.", no("peer-unsupported"),
+       carrier="introduction", document={"id": BOB}, size=3000)
+    ps("profile-card-send-out-of-band", "The identity said so itself with the address it gave: a did:key has no document.", yes,
+       carrier="introduction", oob=[EXT], size=3000)
+    ps("profile-card-send-introduction-over-service-default",
+       "An introduction over 4,096 bytes is not handed to a service that advertises no introduction_max_bytes: it goes without the card.",
+       no("service-cap"), carrier="introduction", oob=[EXT], size=9700)
+    ps("profile-card-send-introduction-over-service-cap", "Nor to one that advertises less than the envelope.", no("service-cap"),
+       carrier="introduction", oob=[EXT], size=9700, cap=8192)
+    ps("profile-card-send-introduction-at-service-cap", "An envelope of exactly the advertised size is handed over.", yes,
+       carrier="introduction", oob=[EXT], size=16384, cap=16384)
+    ps("profile-card-send-introduction-within-service-cap", "A service that advertises 16,384 takes it.", yes,
+       carrier="introduction", oob=[EXT], size=9700, cap=16384)
+    ps("profile-card-send-grant-not-capped", "The introduction cap is the introduction's: a grant is bounded by the transport only.", yes,
+       listed=[EXT], size=9700)
+
     ic = lambda vid, desc, p, expect: out.append(mv(vid, desc, ["M§14.1", "§19.4"], {"check": "introduction", "payload": p}, expect))
     ic("introduction-sealed-valid", "The profile's introduction may carry sealed instead of purpose.", good, accept(effective={"sealed": True}))
     ic("introduction-purpose-and-sealed-refused", "purpose and sealed MUST NOT both be present.", {**good, "purpose": "Hi"},
@@ -2384,6 +2534,28 @@ def first_contact_vectors():
       fc("introduction", "dic", recipient=BOB, envelope="e" * 4097), reject("introduction-too-large", "transport.envelope-too-large"))
     m("deposit-introduction-at-cap-accepted", "Exactly 4,096 bytes is allowed.",
       fc("introduction", "dia", recipient=BOB, envelope="e" * 4096), accept())
+
+    # the larger cap of profile-card/1.0 (spec-gap 186): the mailbox reads the carried payload for `sealed` and the extension
+    def compact(total, ext=True, seal=True):
+        p = with_ext(intro("big")) if ext else intro("big")
+        if seal:
+            p = {**p, "sealed": {"alg": M.SEALED_ALG, "enc": "N_2jVnvb1ijohmjDyNfpfR0SU7bU6m1EwVD3QfG_RDE", "ct": "c" * (total * 3 // 4 - 800)}}
+        else:
+            p = {**p, "identity": {"display_name": "Alice", "claims": [{"blob": "c" * (total * 3 // 4 - 800)}]}}
+        head = "eyJ." + b64url_encode(json.dumps(p, separators=(",", ":")).encode()) + "."
+        assert len(head) < total, (len(head), total)
+        return head + "s" * (total - len(head))
+    m("deposit-introduction-card-over-4096-accepted",
+      "An introduction that carries sealed and lists profile-card/1.0 may be up to 16,384 bytes.",
+      fc("introduction", "dpc", recipient=BOB, envelope=compact(9700)), accept())
+    m("deposit-introduction-card-at-cap-accepted", "Exactly 16,384 bytes is allowed.",
+      fc("introduction", "dpa", recipient=BOB, envelope=compact(16384)), accept())
+    m("deposit-introduction-card-over-cap-refused", "16,385 bytes is not.",
+      fc("introduction", "dpo", recipient=BOB, envelope=compact(16385)), reject("introduction-too-large", "transport.envelope-too-large"))
+    m("deposit-introduction-sealed-unlisted-over-4096-refused", "sealed without the extension stays at 4,096.",
+      fc("introduction", "dpu", recipient=BOB, envelope=compact(4097, ext=False)), reject("introduction-too-large", "transport.envelope-too-large"))
+    m("deposit-introduction-listed-unsealed-over-4096-refused", "The extension without sealed stays at 4,096.",
+      fc("introduction", "dpn", recipient=BOB, envelope=compact(4097, seal=False)), reject("introduction-too-large", "transport.envelope-too-large"))
 
     # mailbox rules (spec-gap 54, §19.4 carried to mailboxes)
     T = "mailbox-trace"

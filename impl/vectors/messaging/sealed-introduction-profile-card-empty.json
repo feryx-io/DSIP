@@ -1,0 +1,47 @@
+{
+  "vector": "messaging/sealed-introduction-profile-card-empty",
+  "format": 1,
+  "kind": "messaging",
+  "description": "A card with no member is a card: it claims nothing.",
+  "spec_ref": [
+    "§19.4",
+    "M§14.1"
+  ],
+  "context": {},
+  "input": {
+    "check": "sealed-introduction-open",
+    "payload": {
+      "dsip": {
+        "core": "1.0",
+        "min_core": "1.0",
+        "profiles": [
+          "messaging/1.0"
+        ],
+        "extensions": [
+          "profile-card/1.0"
+        ],
+        "critical": []
+      },
+      "type": "introduction",
+      "id": "01K742SG00TB5SMDS710AFHN2K",
+      "from": "did:web:alice.example",
+      "to": "did:web:example.com:users:bob",
+      "identity": {
+        "display_name": "Alice"
+      },
+      "issued_at": 1760000000,
+      "expires_at": 1760604800,
+      "sealed": {
+        "alg": "hpke-base-x25519-sha256-aes128gcm",
+        "enc": "GOAC6ikHDszB0YqIgQgRY1mm4y_4difNpnnwAKP9N0s",
+        "ct": "motmlIituWq-pYLdx66Au46l-eyTAQjMwHF91HxODWsPnxKoXJJ-WVQq_i_j2b-1cXDxXWdhkJy2JGszGi7abzmZsS07q9XqSkjU-2KZI18NZteUgaTexuj34se439gdHrfqJm6h_N4S5fthki0qQRShHrnM7L889Cdj"
+      }
+    },
+    "recipient_ed25519_seed_hex": "debb1447ad694df3f8e947ff249a52e382f5e0f539abf79c4710beefd2f89b64"
+  },
+  "expect": {
+    "verdict": "accept",
+    "purpose": "We met at the Syracuse mesh meetup; following up about the antenna group buy.",
+    "profile": {}
+  }
+}

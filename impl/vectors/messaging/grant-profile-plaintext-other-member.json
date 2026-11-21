@@ -1,0 +1,47 @@
+{
+  "vector": "messaging/grant-profile-plaintext-other-member",
+  "format": 1,
+  "kind": "messaging",
+  "description": "The plaintext holds profile and nothing else.",
+  "spec_ref": [
+    "§19.4"
+  ],
+  "context": {},
+  "input": {
+    "check": "grant-profile-open",
+    "grant": {
+      "dsip": {
+        "core": "1.0",
+        "min_core": "1.0",
+        "profiles": [
+          "messaging/1.0"
+        ],
+        "extensions": [
+          "profile-card/1.0"
+        ],
+        "critical": []
+      },
+      "type": "grant",
+      "id": "01K742SG00FVWQGFVB6VC2FABQ",
+      "from": "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn",
+      "to": "did:web:alice.example",
+      "session": "01K742QND024PAJSFG40J59W6B",
+      "scope": [
+        "dsip.invite"
+      ],
+      "valid_until": 1760086400,
+      "issued_at": 1760000000,
+      "expires_at": 1760000030,
+      "profile": {
+        "alg": "hpke-base-x25519-sha256-aes128gcm",
+        "enc": "BxvG1hRbC9tdHq853toZEKMJUCE26o3pe4iaaOcTtXU",
+        "ct": "JPxnV7khPkb5mCw2OMWkefOHpBCHKQ4qTRRDrUB_ykF6x1pF-1jHyyiPT26CP2Cpr5z6V83MkJVcWQASufmYh9PQSUXcJFLULIgfQqZ53XaKHzeF75cfma1vYHKs_TJ3k9Lqe7sJd7Yxu8guv9aBD07M5zJT1_HRBT5PWvF2PwFK5siXbPLtDEcAc1mDFK_i5mgMdN6TpNX-y_ZIf8zluQ4PBkbNgWmYIbAi3RfRP9KdnRiMzcRzxR1UI8dQqrJVb0Gq8SfiCsjJ-km1YnnQdGRrloK5Q6NgpO_A7Q"
+      }
+    },
+    "recipient_ed25519_seed_hex": "2578746844109f4c921992188be2c1362760ee6e62422edd365b214115f90894"
+  },
+  "expect": {
+    "verdict": "reject",
+    "code": "sealed-plaintext-invalid"
+  }
+}

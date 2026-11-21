@@ -13,6 +13,7 @@ import { decodePayload, delegationSubject, type ReceiverContext } from "../envel
 import { reject, type Verdict } from "../verdict.js";
 import { checkConversationExt } from "./message.js";
 import { HPKE_SEALED_ALG, hpkeOpen } from "../hpke.js";
+import { listsProfileCard, takeCard } from "../profile-card.js";
 
 export { hpkeDeriveKeyPair, hpkeOpen, x25519FromEd25519Seed } from "../hpke.js";
 
@@ -134,7 +135,12 @@ const SEALED_INFO = Buffer.from("dsip sealed introduction v1");
 /** Spec: §19.4 — `purpose` is at most 280 characters, sealed or not. */
 const MAX_PURPOSE_CHARS = 280;
 
-/** The purpose of an introduction, opening `sealed` with the recipient's key agreement key. Spec: M§14.1 */
+/**
+ * The purpose of an introduction, and the introducer's profile card when the sealed plaintext holds one, opening
+ * `sealed` with the recipient's key agreement key.
+ *
+ * Spec: M§14.1, §19.4
+ */
 export function openIntroduction(payload: JsonObject, recipientSk: Buffer): Verdict {
   const sealed = payload["sealed"] as JsonObject | undefined;
   if (!sealed) return { verdict: "accept", purpose: (payload["purpose"] ?? null) as Json };
@@ -149,16 +155,17 @@ export function openIntroduction(payload: JsonObject, recipientSk: Buffer): Verd
   const ct = b64urlDecode(sealed["ct"] as string);
   const plaintext = enc && ct ? hpkeOpen(enc, recipientSk, SEALED_INFO, aadBytes, ct) : null;
   if (!plaintext) return reject("sealed-open-failed");
-  let value: Json;
-  try {
-    value = JSON.parse(utf8Decode(plaintext) ?? "!");
-  } catch {
-    return reject("sealed-plaintext-invalid");
-  }
-  // the plaintext is exactly {"purpose": "…"}
+  const decoded = decodePayload(plaintext); // §10.3: UTF-8, a JSON object, no floats
+  if (!decoded.ok) return reject("sealed-plaintext-invalid");
+  const value: Json = decoded.value;
+  // the plaintext is exactly {"purpose": "…"}, optionally with `profile` (§19.4, profile-card/1.0)
   const exact = value !== null && typeof value === "object" && !Array.isArray(value) &&
-    Object.keys(value).length === 1 && typeof value["purpose"] === "string";
+    typeof value["purpose"] === "string" && Object.keys(value).every((k) => k === "purpose" || k === "profile");
   if (!exact) return reject("sealed-plaintext-invalid");
   const purpose = (value as JsonObject)["purpose"] as string;
-  return [...purpose].length > MAX_PURPOSE_CHARS ? reject("purpose-too-long") : { verdict: "accept", purpose };
+  if ([...purpose].length > MAX_PURPOSE_CHARS) return reject("purpose-too-long");
+  if (!("profile" in (value as JsonObject))) return { verdict: "accept", purpose };
+  // §19.4: a card that fails, or one on an introduction that does not list the extension, leaves the purpose as it is
+  const card = listsProfileCard(payload) ? takeCard((value as JsonObject)["profile"]) : null;
+  return card === null ? { verdict: "accept", purpose, profile_ignored: true } : { verdict: "accept", purpose, profile: card };
 }

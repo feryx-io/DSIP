@@ -5533,42 +5533,67 @@ Choices (carriage):
 
 **Recommended: (a)**, with (b) left open as a later addition for updates inside an existing conversation.
 
-**Decided (2026-11-20, user): (a), on the introduction and on the grant.** Not yet in the text. The rules to write:
+**Decided (2026-11-20, user): (a), on the introduction and on the grant, sent only where it is known to be
+supported.** §11.4 settles how: the schemas are closed, so a 1.0 receiver refuses a grant with an unknown member, a
+sealed plaintext that is not exactly a purpose, and an introduction over 4,096 bytes, and an introduction is never
+answered, so the sender would not learn of it. The user chose to keep the card on the two messages and gate it,
+over a separate message type that 1.0 would drop harmlessly and over breaking compatibility.
 
-1. **Opt-in.** A client MUST NOT send a card unless its user turned sharing on; the default is off. Two standing
-   choices: with introductions sent, and with grants given.
-2. **Size.** An introduction carrying `sealed` MAY be up to **16,384** encoded bytes; one without stays at 4,096.
-   (A holder cannot see whether a sealed introduction carries a card, so the larger cap is `sealed`'s.) Relays hold at
-   most 16 per inbox, so the bound per recipient stays small. `picture.data` is at most 8,192 bytes before encoding
-   (M§8.2's inline thumbnail bound), `image/jpeg` or `image/png`; `display_name` at most 256 characters, as in
-   `identity`.
-3. **A claim, attributed.** The receiver renders the card as the sending identity's own claim, labelled unverified,
-   beside the identity itself: on an introduction, in the requests surface only. A logo or brand is shown as verified
-   only by §18.2's rule (a credential from a trusted issuer), never because a card carries it. A client MAY let its
-   user hide pictures on requests from identities it does not know.
-4. **The receiver's own choice wins.** A picture the receiving user chose for a contact takes precedence over a card.
-5. **Replacement and removal.** A later grant's card replaces the earlier one; a card without `picture` removes the
-   picture; a later grant without `profile` leaves what the receiver holds. An introduction's card is kept with the
-   request, and with the contact once the request is granted.
-6. **After revocation or expiry** of the grant, the receiver SHOULD stop showing the grantor's card. A courtesy, not
-   something the sender can enforce.
-7. **A card that fails** (cannot be unsealed, over a limit, a type not listed) is ignored; it never invalidates the
-   introduction or the grant that carries it.
+In the text (core §19.4 "Profile cards", §18.2, §11.4, A.16; M§14.1), as the extension `profile-card/1.0`:
+
+1. **The card**: `display_name` (1 to 256 characters) and `picture` (`image/jpeg` or `image/png`, `data` unpadded
+   base64url of at most **4,096** bytes), each optional; unknown card members are ignored. The picture bound is 4,096
+   and not the 8,192 first proposed: the card is encoded three times over (plaintext, ciphertext, envelope), so 4,096
+   bytes of picture are about 9,700 bytes of envelope, and 8,192 would not fit under the cap.
+2. **Carriage**: `profile` in the `sealed` plaintext of an introduction, beside `purpose`; a new sealed member
+   `profile` of a grant (`info` `dsip profile card v1`, AAD `id ‖ 0x00 ‖ from ‖ 0x00 ‖ to`, plaintext
+   `{"profile": {…}}`). Both list the extension in `dsip.extensions`.
+3. **Size**: an introduction that carries `sealed` and lists the extension may be up to **16,384** encoded bytes;
+   any other stays at 4,096.
+4. **Known support**: the receiver listed the extension in `dsip.extensions` of an introduction or grant it sent;
+   or its DID document lists it in `dsipExtensions`; or it said so out of band with the address it gave (the
+   deployment's link or QR code). §11.4's list of sources gains "a means the extension or profile itself defines"
+   for the last. A larger introduction goes only through a holder whose `hello` advertises
+   `introduction_max_bytes`.
+5. **Opt-in**, off by default; with introductions sent and with grants given are separate choices.
+6. **A claim, attributed**: shown labelled unverified, an introduction's card in the requests surface only; the
+   receiving user's own picture for a contact wins; a client MAY let its user hide pictures on requests.
+7. **Replacement and removal**: a later grant's card replaces; a card without `picture` removes the picture; a grant
+   without `profile` leaves what is held. After revocation or expiry the receiver SHOULD stop showing it.
+8. **A card that fails** is ignored and never invalidates the message that carries it.
 
 Open:
 
-- **Compatibility.** The message schemas refuse unknown members, so an implementation older than this refuses a
-  grant carrying `profile`, and refuses an introduction over 4,096 bytes. A sender cannot tell which its peer is. To
-  settle with the text: land it in place under §11.4 as 185 did, or have the sender learn support first (a
-  capability in the DID document's service entry or the peer's `hello`).
+- **`did:key` identities** have no document, so an introducer knows a `did:key` recipient supports cards only from
+  an earlier message or out of band. Advertising the extension in a DHT reachability hint would close that, but the
+  hint schema is closed too, so it is its own change to the hints profile.
 - Whether a card may also travel as Messaging content ((b)) between identities that already share a conversation.
 - A recorded video greeting on an introduction (asked 2026-11-20): too large for any inline cap, so it would be an
   encrypted blob by reference. Its own gap if wanted.
+- The endpoint traces (kind `state`) do not carry cards: a card rides the grant or introduction the application
+  builds, and the checks below are what a client is measured by.
+- Not yet done: the app (two switches under Me, and its share link stating support).
 
-Vectors when adopted: an introduction with `sealed` between 4,097 and 16,384 bytes (accepted) and one over 16,384
-(`introduction-too-large`); one without `sealed` over 4,096 (refused as now); a grant with a valid `profile`; cards
-over the picture limit, of an unlisted type, sealed to another identity, or bound to another grant id (each ignored,
-the carrier accepted); a following grant that replaces the card, one that removes the picture, one with no `profile`.
+**Fixed while writing the vectors (2026-11-21), each now in §19.4 or the vectors README:**
+
+- A card on an introduction or a grant that does not list `profile-card/1.0` is **ignored** (considered: taken
+  anyway, which leaves the MUST to list it without effect; refusing the carrier, which contradicts rule 8).
+- The picture's bytes are counted from the length of `data`, ⌊3n/4⌋. Decoding it would make the verdict depend on
+  whether a base64 decoder tolerates unused trailing bits, which differs between libraries.
+- A mailbox reads the payload of a carried compact envelope for `sealed` and the extension to pick the cap; one it
+  cannot read stays at 4,096.
+- `introduction_max_bytes` is an integer of at least 4,096 (`hello` schema).
+- The sealed plaintext of an introduction, and of a grant's `profile`, is parsed as §10.3 JSON, as a sealed body's
+  already was (§10.4). Before this the Python harness read a sealed purpose with a byte-order mark, or in UTF-16,
+  and dsip-rs and impl-ts did not: found by probing the three with generated cards.
+
+**Vectors (70, hand-authored):** `payload/grant-profile-*`, `payload/hello-relay-introduction-max-bytes*`,
+`semantic/introduction-card-size-*`, `semantic/introduction-sealed-unlisted-size-over-4096`,
+`semantic/introduction-listed-unsealed-size-over-4096`, `envelope/introduction-card-*`,
+`envelope/introduction-sealed-unlisted-too-large`, `messaging/sealed-introduction-profile-card-*`,
+`messaging/sealed-introduction-extension-listed-no-card`, `messaging/grant-profile-*` (check `grant-profile-open`),
+`messaging/profile-card-send-*` (check `profile-card-send`, the sender's rule) and
+`messaging/deposit-introduction-card-*`, `-sealed-unlisted-`, `-listed-unsealed-`. Python, impl-ts and dsip-rs agree.
 
 ## 187. §13.3 — whether a cancel the attempt does not act on keeps the relay holding the attempt
 
@@ -5592,3 +5617,35 @@ count only by the order of two statements.
 `cancel` from the initiator addressed to a device that is no leg of the attempt does not restart the count. Vector
 `state/relay-cancel-to-no-leg-does-not-keep-the-attempt` (hand-authored) pins the trace. Python changed
 (`dsipvec/relay.py`); impl-ts already read it so; dsip-rs follows with the pin.
+
+## 188. §10.3 — whether JSON holding a lone surrogate is a payload
+
+**Found** 2026-11-21, probing the three implementations with generated profile cards (spec-gap 186). **Decided (2026-11-21, user): (a).**
+
+§10.3 says a payload is UTF-8 JSON and says nothing of a string that holds a lone surrogate, which JSON's grammar
+allows as an escape: `{"display_name": "\ud83d"}`. The three disagree. dsip-rs (serde_json) refuses the text, so the
+payload is `payload-not-json`, and a sealed plaintext `sealed-plaintext-invalid`. The Python harness and impl-ts
+parse it and carry the unpaired code unit on. Observed on sealed plaintexts (a sealed purpose, a card), which use
+the §10.3 parse; the same parse reads every envelope payload, so a signed message with such a string is accepted by
+two implementations and refused by the third. No vector holds one, which is why the suite did not see it.
+
+A raw lone surrogate (bytes `ED A0 80`) is not UTF-8 and all three already refuse it. The question is the escape.
+
+Choices:
+
+- **(a) Refuse.** A payload, or a sealed plaintext, in which any string or member name holds a lone surrogate,
+  escaped or not, is not JSON for §10.3: `payload-not-json`. This is I-JSON's rule (RFC 7493 §2.1), what did:webvh
+  log lines already get (spec-gap 101 item 4), and what the deployed Rust does. Python and impl-ts change.
+- **(b) Accept.** The text is JSON by RFC 8259, and the string is carried as it is. dsip-rs changes, and needs a
+  JSON parser that keeps unpaired surrogates, which Rust strings cannot hold.
+
+Recommended: **(a)**. A string that cannot be encoded as UTF-8 cannot be shown, compared or re-sent faithfully, and
+(b) is not implementable in every language.
+
+**Decided (a)**, in place in §10.3: such a text is `payload-not-json`, checked before `payload-float`; a sealed
+plaintext that holds one is `sealed-plaintext-invalid`. Vectors (hand-authored): `envelope/payload-lone-surrogate-*`,
+`envelope/payload-lone-low-surrogate-escape`, `envelope/payload-surrogate-pair-escape` (a pair is accepted),
+`messaging/sealed-introduction-plaintext-lone-surrogate`, `messaging/grant-profile-plaintext-lone-surrogate`,
+`messaging/mls-conversation-bytes-lone-surrogate`. The Python harness and impl-ts changed; dsip-rs already read it so.
+The harness's §10.3 parse also stopped accepting `NaN` and `Infinity`, which are not JSON and which the other two
+never accepted.

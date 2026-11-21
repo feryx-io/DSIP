@@ -1,0 +1,27 @@
+{
+  "vector": "messaging/profile-card-send-grant-to-listing-introducer",
+  "format": 1,
+  "kind": "messaging",
+  "description": "The introduction listed profile-card/1.0, so the grant answering it may carry the grantor's card.",
+  "spec_ref": [
+    "§19.4",
+    "§11.4"
+  ],
+  "context": {},
+  "input": {
+    "check": "profile-card-send",
+    "sharing": true,
+    "carrier": "grant",
+    "peer": {
+      "listed": [
+        "profile-card/1.0"
+      ],
+      "document": null,
+      "out_of_band": []
+    },
+    "encoded_size": 600
+  },
+  "expect": {
+    "card": true
+  }
+}

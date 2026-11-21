@@ -162,6 +162,13 @@ def vectors() -> list[dict]:
                   {**hr, "capabilities": {**hr["capabilities"], "max_envelope_bytes": 32768}}, ok=False))
     out.append(pv("hello-relay-unknown-capability-ok", "hello", "Unknown capability fields MUST be ignored.", ["§13.2"],
                   {**hr, "capabilities": {**hr["capabilities"], "x_future": {"a": 1}}}))
+    out.append(pv("hello-relay-introduction-max-bytes", "hello", "A service that accepts larger introductions says so "
+                  "(profile-card/1.0, spec-gap 186).", ["§13.2", "§19.4"],
+                  {**hr, "capabilities": {**hr["capabilities"], "introduction_max_bytes": 16384}}))
+    out.append(pv("hello-relay-introduction-max-bytes-below-core", "hello", "introduction_max_bytes is never below the core 4,096.",
+                  ["§13.2", "§19.4"], {**hr, "capabilities": {**hr["capabilities"], "introduction_max_bytes": 4095}}, ok=False))
+    out.append(pv("hello-relay-introduction-max-bytes-not-integer", "hello", "introduction_max_bytes is an integer.",
+                  ["§13.2", "§19.4"], {**hr, "capabilities": {**hr["capabilities"], "introduction_max_bytes": "16384"}}, ok=False))
     out.append(pv("hello-capabilities-without-in-reply-to", "hello", "capabilities entails in_reply_to.", ["§13.2"],
                   {k: v for k, v in hr.items() if k != "in_reply_to"}, ok=False))
 
@@ -178,6 +185,15 @@ def vectors() -> list[dict]:
     grant = {"dsip": V, "type": "grant", "id": uid("grant"), "session": intro["id"], "from": F.BOB_WEB, "to": F.did("carol-phone"),
              "scope": ["dsip.invite"], "valid_until": NOW + 31536000, "issued_at": NOW + 600, "expires_at": NOW + 630}
     out.append(pv("grant-valid", "grant", "Grant referencing the introduction.", ["§19.4"], grant))
+    sealed_card = {"alg": "hpke-base-x25519-sha256-aes128gcm", "enc": "N_2jVnvb1ijohmjDyNfpfR0SU7bU6m1EwVD3QfG_RDE",
+                   "ct": "-ThVi11y8aI4ELS-KrT4QzGswC_JeavFOlKughijVamGh3CsjNB76ofhPFEq"}
+    carded = {**grant, "dsip": {**V, "extensions": ["profile-card/1.0"]}, "profile": sealed_card}
+    out.append(pv("grant-profile-valid", "grant", "A grant may carry profile, {alg, enc, ct}: the grantor's sealed profile card "
+                  "(profile-card/1.0, spec-gap 186).", ["§19.4"], carded))
+    out.append(pv("grant-profile-missing-ct-invalid", "grant", "profile carries alg, enc and ct.", ["§19.4"],
+                  {**carded, "profile": {k: v for k, v in sealed_card.items() if k != "ct"}}, ok=False))
+    out.append(pv("grant-profile-extra-field-invalid", "grant", "profile takes no other field: a card is never in clear.", ["§19.4"],
+                  {**carded, "profile": {**sealed_card, "display_name": "Bob"}}, ok=False))
     out.append(pv("grant-scope-unprefixed", "grant", "Scope without the dsip. prefix.", ["§19.4"], {**grant, "scope": ["invite"]}, ok=False))
     out.append(pv("grant-empty-scope", "grant", "scope must be non-empty.", ["§19.4"], {**grant, "scope": []}, ok=False))
 

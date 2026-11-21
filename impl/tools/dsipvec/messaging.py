@@ -18,6 +18,7 @@ removes, validity, digests), exactly as relay traces abstract signatures.
 from __future__ import annotations
 
 import json
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -82,6 +83,8 @@ DEPOSIT_ALLOWED = {
     "grant": {"envelope"},
 }
 INTRODUCTION_MAX_BYTES = 4096   # §19.4
+INTRODUCTION_CARD_MAX_BYTES = 16384  # §19.4, profile-card/1.0 (spec-gap 186)
+PROFILE_CARD_EXT = "profile-card/1.0"
 SIZED_FIELDS = ("mls", "welcome", "group_info", "sealed", "archive")
 
 
@@ -144,6 +147,30 @@ def check_message(p: dict) -> dict:
     return accept()
 
 
+def introduction_cap(payload) -> int:
+    """§19.4 (profile-card/1.0, spec-gap 186): 16,384 for an introduction that carries `sealed` and lists the
+    extension, 4,096 for every other."""
+    d = payload.get("dsip") if isinstance(payload, dict) else None
+    exts = d.get("extensions") if isinstance(d, dict) else None
+    if "sealed" in payload and isinstance(exts, list) and PROFILE_CARD_EXT in exts:
+        return INTRODUCTION_CARD_MAX_BYTES
+    return INTRODUCTION_MAX_BYTES
+
+
+def introduction_cap_compact(envelope: str) -> int:
+    """The cap of a carried compact envelope: its payload is read for `sealed` and the extension; one that cannot be
+    read as a JSON object stays at 4,096."""
+    parts = envelope.split(".")
+    if len(parts) != 3 or not re.fullmatch(r"[A-Za-z0-9_-]+", parts[1]) or len(parts[1]) % 4 == 1:
+        return INTRODUCTION_MAX_BYTES
+    from .crypto import b64url_decode
+    try:
+        payload = json.loads(b64url_decode(parts[1]).decode("utf-8"))
+    except ValueError:
+        return INTRODUCTION_MAX_BYTES
+    return introduction_cap(payload) if isinstance(payload, dict) else INTRODUCTION_MAX_BYTES
+
+
 def check_deposit(p: dict) -> dict:
     cls = p["class"]
     if cls not in DEPOSIT_CLASSES:  # M§5.2: class is structural, unknown is refused
@@ -155,7 +182,7 @@ def check_deposit(p: dict) -> dict:
         return reject("deposit-fields")
     if (cls in FIRST_CONTACT_CLASSES) != ("group" not in p) or (cls in FIRST_CONTACT_CLASSES and "recipient" not in p):
         return reject("deposit-fields")  # spec-gap 54: first-contact deposits name a recipient and no group
-    if cls == "introduction" and len(p["envelope"]) > INTRODUCTION_MAX_BYTES:  # §19.4 on the compact envelope
+    if cls == "introduction" and len(p["envelope"]) > introduction_cap_compact(p["envelope"]):  # §19.4 on the compact envelope
         return reject("introduction-too-large", "transport.envelope-too-large")
     for f in SIZED_FIELDS:  # M§5.1
         if f in p and decoded_len(p[f]) > MAX_MLS_BYTES:
@@ -1963,7 +1990,8 @@ def check_conversation_bytes(data: bytes) -> dict:
         obj = json.loads(text)
     except ValueError:
         return reject("payload-not-json")
-    if not isinstance(obj, dict):
+    from .wire import has_lone_surrogate
+    if not isinstance(obj, dict) or has_lone_surrogate(obj):  # §10.3, spec-gap 188
         return reject("payload-not-json")
     if has_float(obj):
         return reject("payload-float")
@@ -2124,15 +2152,101 @@ def open_sealed_introduction(p: dict, recipient_seed: bytes) -> dict:
     pt = hpke_open(b64url_decode(p["sealed"]["enc"]), sk, SEALED_INFO, sealed_aad(p), b64url_decode(p["sealed"]["ct"]))
     if pt is None:
         return reject("sealed-open-failed")
-    try:
-        body = json.loads(pt)
-    except ValueError:
+    from .wire import parse_payload  # §10.3: UTF-8, a JSON object, no floats
+    body = parse_payload(pt, core_shape=False)[1]
+    if body is None:
         return reject("sealed-plaintext-invalid")
-    if not isinstance(body, dict) or set(body) != {"purpose"} or not isinstance(body["purpose"], str):
+    # §19.4: exactly `purpose`, optionally with `profile` (profile-card/1.0, spec-gap 186)
+    if not isinstance(body, dict) or not {"purpose"} <= set(body) <= {"purpose", "profile"} or not isinstance(body["purpose"], str):
         return reject("sealed-plaintext-invalid")
     if len(body["purpose"]) > PURPOSE_MAX_CHARS:
         return reject("purpose-too-long")
-    return accept(purpose=body["purpose"])
+    if "profile" not in body:
+        return accept(purpose=body["purpose"])
+    card = take_card(body["profile"]) if lists_profile_card(p) else None  # a card that fails leaves the purpose
+    if card is None:
+        return accept(purpose=body["purpose"], profile_ignored=True)
+    return accept(purpose=body["purpose"], profile=card)
+
+
+PROFILE_INFO = b"dsip profile card v1"
+CARD_NAME_MAX_CHARS = 256
+CARD_PICTURE_MAX_BYTES = 4096
+CARD_PICTURE_TYPES = ("image/jpeg", "image/png")
+
+
+def lists_profile_card(p: dict) -> bool:
+    return PROFILE_CARD_EXT in p["dsip"].get("extensions", [])
+
+
+def take_card(card) -> dict | None:
+    """§19.4 (profile-card/1.0): the card as taken (its known members), or None when it is ignored. Whole or not at all."""
+    if not isinstance(card, dict):
+        return None
+    out = {}
+    if "display_name" in card:
+        n = card["display_name"]
+        if not isinstance(n, str) or not 1 <= len(n) <= CARD_NAME_MAX_CHARS:  # Unicode code points
+            return None
+        out["display_name"] = n
+    if "picture" in card:
+        pic = card["picture"]
+        if not isinstance(pic, dict) or set(pic) != {"content_type", "data"}:
+            return None
+        ct, data = pic["content_type"], pic["data"]
+        if not isinstance(ct, str) or not isinstance(data, str) or ct not in CARD_PICTURE_TYPES:
+            return None
+        # unpadded base64url; the bytes it encodes are floor(3n/4) for n characters
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", data) or len(data) % 4 == 1 or not 1 <= len(data) * 3 // 4 <= CARD_PICTURE_MAX_BYTES:
+            return None
+        out["picture"] = {"content_type": ct, "data": data}
+    return out
+
+
+def open_grant_profile(g: dict, recipient_seed: bytes) -> dict:
+    """§19.4 (profile-card/1.0): the card a grant's `profile` carries, or why it is ignored. The grant stands either way."""
+    if "profile" not in g:
+        return accept(profile=None)
+    if not lists_profile_card(g):
+        return reject("profile-extension-unlisted")
+    pr = g["profile"]
+    if pr["alg"] != SEALED_ALG:
+        return reject("sealed-alg-unsupported")
+    from .crypto import b64url_decode
+    try:
+        enc, ct = b64url_decode(pr["enc"]), b64url_decode(pr["ct"])
+    except ValueError:
+        return reject("sealed-open-failed")
+    pt = hpke_open(enc, x25519_from_ed25519_seed(recipient_seed), PROFILE_INFO, sealed_aad(g), ct)
+    if pt is None:
+        return reject("sealed-open-failed")
+    from .wire import parse_payload  # §10.3: UTF-8, a JSON object, no floats
+    body = parse_payload(pt, core_shape=False)[1]
+    if body is None:
+        return reject("sealed-plaintext-invalid")
+    if not isinstance(body, dict) or set(body) != {"profile"}:
+        return reject("sealed-plaintext-invalid")
+    card = take_card(body["profile"])
+    return reject("profile-card-invalid") if card is None else accept(profile=card)
+
+
+def profile_card_send(inp: dict) -> dict:
+    """§19.4 (profile-card/1.0), the sender's side: whether a card goes with this introduction or grant."""
+    if not inp["sharing"]:  # consent: the user's standing choice, off by default
+        return {"card": False, "why": "sharing-off"}
+    peer = inp.get("peer") or {}
+    doc = peer.get("document")
+    doc_exts = doc.get("dsipExtensions") if isinstance(doc, dict) else None
+    known = (PROFILE_CARD_EXT in (peer.get("listed") or [])
+             or (isinstance(doc_exts, list) and PROFILE_CARD_EXT in doc_exts)
+             or PROFILE_CARD_EXT in (peer.get("out_of_band") or []))
+    if not known:
+        return {"card": False, "why": "peer-unsupported"}
+    if inp["carrier"] == "introduction":
+        cap = inp.get("service_introduction_max_bytes")
+        if inp["encoded_size"] > (INTRODUCTION_MAX_BYTES if cap is None else cap):
+            return {"card": False, "why": "service-cap"}
+    return {"card": True}
 
 
 # ---------------------------------------------------------------- blob endpoint (M§5.6, M§8.4)
@@ -2329,6 +2443,10 @@ def run(v: dict) -> dict:
         return check_introduction(inp["payload"])
     if check == "sealed-introduction-open":
         return open_sealed_introduction(inp["payload"], bytes.fromhex(inp["recipient_ed25519_seed_hex"]))
+    if check == "grant-profile-open":
+        return open_grant_profile(inp["grant"], bytes.fromhex(inp["recipient_ed25519_seed_hex"]))
+    if check == "profile-card-send":
+        return profile_card_send(inp)
     if check == "registration-on-removal":
         return registration_on_removal(inp)
     if check == "blob-put":

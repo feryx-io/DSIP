@@ -1,0 +1,49 @@
+{
+  "vector": "messaging/grant-profile-name-only",
+  "format": 1,
+  "kind": "messaging",
+  "description": "A card without a picture.",
+  "spec_ref": [
+    "§19.4"
+  ],
+  "context": {},
+  "input": {
+    "check": "grant-profile-open",
+    "grant": {
+      "dsip": {
+        "core": "1.0",
+        "min_core": "1.0",
+        "profiles": [
+          "messaging/1.0"
+        ],
+        "extensions": [
+          "profile-card/1.0"
+        ],
+        "critical": []
+      },
+      "type": "grant",
+      "id": "01K742SG00R5SW8SH0GMT2RSA7",
+      "from": "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn",
+      "to": "did:web:alice.example",
+      "session": "01K742QND0GF5KE2ACEY4HWYEM",
+      "scope": [
+        "dsip.invite"
+      ],
+      "valid_until": 1760086400,
+      "issued_at": 1760000000,
+      "expires_at": 1760000030,
+      "profile": {
+        "alg": "hpke-base-x25519-sha256-aes128gcm",
+        "enc": "uoULN-cOYRAnFPu2Vnpm9kCchMY-XyRACWqpinIFIEg",
+        "ct": "8M3fJlBeJq7K86aaaKWBYT5cSs4r_CaV4RR0AyMEniGGrR_l7M9U9loxuv59YXD7clBxhQ"
+      }
+    },
+    "recipient_ed25519_seed_hex": "2578746844109f4c921992188be2c1362760ee6e62422edd365b214115f90894"
+  },
+  "expect": {
+    "verdict": "accept",
+    "profile": {
+      "display_name": "Bob"
+    }
+  }
+}

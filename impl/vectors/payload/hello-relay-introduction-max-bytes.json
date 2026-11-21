@@ -1,0 +1,41 @@
+{
+  "vector": "payload/hello-relay-introduction-max-bytes",
+  "format": 1,
+  "kind": "payload",
+  "description": "A service that accepts larger introductions says so (profile-card/1.0, spec-gap 186).",
+  "spec_ref": [
+    "§13.2",
+    "§19.4"
+  ],
+  "context": {},
+  "input": {
+    "schema": "hello",
+    "payload": {
+      "dsip": {
+        "core": "1.0",
+        "min_core": "1.0",
+        "profiles": [],
+        "extensions": [],
+        "critical": []
+      },
+      "type": "hello",
+      "id": "01K742SGZ8PXCM5NP8G0AGW3TF",
+      "from": "did:web:relay.example.com",
+      "in_reply_to": "01K742SG00KJJXKH2T8EM4GAEX",
+      "capabilities": {
+        "max_envelope_bytes": 65536,
+        "store_and_forward": true,
+        "rate_limit": {
+          "envelopes_per_minute": 120,
+          "invites_per_minute": 10
+        },
+        "introduction_max_bytes": 16384
+      },
+      "issued_at": 1760000001,
+      "expires_at": 1760000031
+    }
+  },
+  "expect": {
+    "verdict": "accept"
+  }
+}

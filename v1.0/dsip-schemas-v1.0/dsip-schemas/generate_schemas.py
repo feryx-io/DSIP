@@ -322,6 +322,8 @@ schemas["hello"] = base(
                     "additionalProperties": True,
                 },
                 "push_wake": {"type": "array", "items": {"type": "string"}},
+                "introduction_max_bytes": {"type": "integer", "minimum": 4096,
+                                           "description": "The largest encoded introduction this service accepts (spec 19.4, profile-card/1.0; 1.x, spec-gap 186). Absent means 4,096."},
             },
             "required": ["max_envelope_bytes"],
             "additionalProperties": True,
@@ -586,6 +588,17 @@ schemas["grant"] = base(
         "presence_keys": {
             "type": "object",
             "description": "The grantor's sealed-presence keys the grantee may read, HPKE-sealed to the grantee identity's key agreement key (P12.3; v0.17, spec-gaps 152, 157). The plaintext is {\"keys\": [{\"kid\", \"key\"}]} padded to a multiple of 256 bytes.",
+            "properties": {
+                "alg": {"type": "string", "minLength": 1, "description": "Sealing algorithm; hpke-base-x25519-sha256-aes128gcm."},
+                "enc": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9_-]+$", "description": "HPKE encapsulated key, base64url."},
+                "ct": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9_-]+$", "description": "HPKE ciphertext, base64url."},
+            },
+            "required": ["alg", "enc", "ct"],
+            "additionalProperties": False,
+        },
+        "profile": {
+            "type": "object",
+            "description": "Extension profile-card/1.0 (spec 19.4; 1.x, spec-gap 186): the grantor's profile card, HPKE-sealed to the grantee identity's key agreement key. The plaintext is {\"profile\": {display_name?, picture?}}. A grant with profile lists profile-card/1.0 in dsip.extensions, and is sent only to a grantee known to support the extension.",
             "properties": {
                 "alg": {"type": "string", "minLength": 1, "description": "Sealing algorithm; hpke-base-x25519-sha256-aes128gcm."},
                 "enc": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9_-]+$", "description": "HPKE encapsulated key, base64url."},

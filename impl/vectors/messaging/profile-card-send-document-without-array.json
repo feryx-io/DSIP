@@ -1,0 +1,28 @@
+{
+  "vector": "messaging/profile-card-send-document-without-array",
+  "format": 1,
+  "kind": "messaging",
+  "description": "A document without dsipExtensions says nothing.",
+  "spec_ref": [
+    "§19.4",
+    "§11.4"
+  ],
+  "context": {},
+  "input": {
+    "check": "profile-card-send",
+    "sharing": true,
+    "carrier": "introduction",
+    "peer": {
+      "listed": [],
+      "document": {
+        "id": "did:web:example.com:users:bob"
+      },
+      "out_of_band": []
+    },
+    "encoded_size": 3000
+  },
+  "expect": {
+    "card": false,
+    "why": "peer-unsupported"
+  }
+}

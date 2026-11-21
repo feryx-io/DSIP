@@ -1,0 +1,27 @@
+{
+  "vector": "messaging/profile-card-send-out-of-band",
+  "format": 1,
+  "kind": "messaging",
+  "description": "The identity said so itself with the address it gave: a did:key has no document.",
+  "spec_ref": [
+    "§19.4",
+    "§11.4"
+  ],
+  "context": {},
+  "input": {
+    "check": "profile-card-send",
+    "sharing": true,
+    "carrier": "introduction",
+    "peer": {
+      "listed": [],
+      "document": null,
+      "out_of_band": [
+        "profile-card/1.0"
+      ]
+    },
+    "encoded_size": 3000
+  },
+  "expect": {
+    "card": true
+  }
+}

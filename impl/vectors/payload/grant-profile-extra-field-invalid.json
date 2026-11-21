@@ -1,0 +1,47 @@
+{
+  "vector": "payload/grant-profile-extra-field-invalid",
+  "format": 1,
+  "kind": "payload",
+  "description": "profile takes no other field: a card is never in clear.",
+  "spec_ref": [
+    "§19.4"
+  ],
+  "context": {},
+  "input": {
+    "schema": "grant",
+    "payload": {
+      "dsip": {
+        "core": "1.0",
+        "min_core": "1.0",
+        "profiles": [
+          "interactive-media/1.0"
+        ],
+        "extensions": [
+          "profile-card/1.0"
+        ],
+        "critical": []
+      },
+      "type": "grant",
+      "id": "01K742SG008Y7R2F53RRJG6E4R",
+      "session": "01K742SG00Z41R1RN63EB956CH",
+      "from": "did:web:example.com:users:bob",
+      "to": "did:key:z6Mks5FEYf8Z7WygGqzyejjnf3VHupKMYBv4bKgEfW52wqmL",
+      "scope": [
+        "dsip.invite"
+      ],
+      "valid_until": 1791536000,
+      "issued_at": 1760000600,
+      "expires_at": 1760000630,
+      "profile": {
+        "alg": "hpke-base-x25519-sha256-aes128gcm",
+        "enc": "N_2jVnvb1ijohmjDyNfpfR0SU7bU6m1EwVD3QfG_RDE",
+        "ct": "-ThVi11y8aI4ELS-KrT4QzGswC_JeavFOlKughijVamGh3CsjNB76ofhPFEq",
+        "display_name": "Bob"
+      }
+    }
+  },
+  "expect": {
+    "verdict": "reject",
+    "code": "schema-invalid"
+  }
+}
