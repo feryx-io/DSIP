@@ -5703,3 +5703,39 @@ does not watch learns nothing and keeps to `valid_until`.
 No vector: nothing on the wire changes, and "Keeping it" is the receiver's own display, with no vectors of its own.
 Implemented in dsip-rs (`dsip-phone` says when a watch that presented grants was ended by policy before they
 expired) and in the app (the card that came on a grant from that identity is dropped).
+
+## 191. §12.8, §12.9 — an `update` that is never answered stays outstanding until `bye`
+
+**Found** 2026-11-23, adding video to a call under way in dsip-rs (#75) and the app (dsip-app #102). **Not decided.**
+
+§12.8 rule 1 has an `update` answered with `answer` or `reject`, and rule 2 holds the sender in RENEGOTIATING
+"while an update is outstanding (sent but not yet answered or rejected)", one per session across both directions.
+§12.9 has no timer for it: T-Establish, T-Ring and T-Queue all stop at the invite's answer. Nothing says what
+happens when neither reply comes: the peer's reply is lost, the peer is an implementation that does not answer
+updates, or a person never decides. The sender then cannot send another `update` (rule 2), its local offer is
+never rolled back (B§5.2 names only a rejected update), and the session stays that way until one side sends `bye`
+(rule 6). The update's own `expires_at` bounds its delivery (§12.9 "Expiry") and says nothing of the reply.
+
+Seen: an app that adds video to a call with an app that predates it shows "Asking for video…" for the rest of
+the call.
+
+Choices:
+
+- **(a) A sender's timer (T-Update).** Started on sending `update`, stopped by its `answer` or `reject`. On expiry
+  the sender treats the update as rejected (`session.timeout`), rolls back (B§5.2) and may offer again. Only the
+  sender knows it fired: a receiver that answers afterwards has applied a selection the sender no longer holds,
+  so the rule must also say what the sender does with that late `answer` (most simply, `bye`, or an `error` the
+  receiver rolls back on), and the two sides disagree about the session's media until it arrives.
+- **(b) The update's `expires_at` bounds its answer.** An `update` is outstanding only while `now < expires_at`:
+  after it the sender treats it as rejected and rolls back, and the receiver MUST NOT answer it (a reply at or
+  after `expires_at` is discarded by the sender). Both sides read the same instant from the signed message, and
+  no new timer or message is needed. The usual 30 s validity is short where a person must consent, so the
+  sender would choose a longer one for such an update, within the 300 s replay window.
+- **(c) Leave it.** `bye` is the only way out of an unanswered update; a client shows that the request is
+  pending and offers to hang up.
+
+**Suggested: (b)**, since rule 2 counts the outstanding update across both directions and only (b) lets both
+sides know when it stopped being one.
+
+Until decided: dsip-rs and the Python and TypeScript harnesses keep an unanswered update outstanding until `bye`,
+which is (c) and what the present text says. No vector, no `Impl:` note: nothing was chosen.
