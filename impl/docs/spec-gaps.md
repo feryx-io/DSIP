@@ -5674,3 +5674,32 @@ there.
 
 Vectors (hand-authored): `dht/hint-lists-extension` (a node stores it, knowing the extension or not),
 `messaging/profile-card-send-hint-lists-it`. No implementation changed: all three already accepted both.
+
+## 190. §19.4, P§7 — the receiver of a grant's card is never told that the grant was revoked
+
+**Found** 2026-11-22, building profile cards into the app (spec-gap 186). **Decided (2026-11-22, user): inferred from presence.**
+
+§19.4 "Keeping it": when the grant that carried a card is revoked or expires, the receiver SHOULD stop showing the
+card. Expiry is the grant's own `valid_until`. A revocation is a `grant-revocation` sent to the grantor's authority
+and not answered: nothing is sent to the grantee, so the SHOULD named an event the receiver could not see. The app
+kept a revoked grant's card until the grant's `valid_until`.
+
+Choices:
+
+- **(a) Infer it from presence.** P§7 already has the authority end every subscription a revoked grant admitted with
+  a `terminated` notify, reason `policy.terminated`. A grantee whose subscription presented the grant sees that
+  before the grant's `valid_until`. No message changes, and a grantor who blocks someone tells them nothing more
+  than today. It reaches only a grantee that watches the grantor's presence, and `policy.terminated` is also what
+  another withdrawn authorization looks like, so it is an inference.
+- **(b) Send the grantee the revocation.** Exact and immediate, but a new wire behaviour in all three
+  implementations, and it tells a person they were revoked or blocked, which M§14 lets a client do silently.
+- **(c) Leave it.** The card stays until `valid_until`.
+
+**Chosen: (a).** §19.4: a presence subscription that presented the grant and ends `policy.terminated` before the
+grant's `valid_until` is taken as the grant's revocation, for the card only. A wrong inference costs a card that is
+no longer shown, which the grantor's next grant with a card restores; nothing else is decided by it. A receiver that
+does not watch learns nothing and keeps to `valid_until`.
+
+No vector: nothing on the wire changes, and "Keeping it" is the receiver's own display, with no vectors of its own.
+Implemented in dsip-rs (`dsip-phone` says when a watch that presented grants was ended by policy before they
+expired) and in the app (the card that came on a grant from that identity is dropped).

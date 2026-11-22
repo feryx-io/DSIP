@@ -2024,6 +2024,8 @@ A sender that may not send its card sends the introduction or the grant without 
 
 **Keeping it.** An introduction's card is kept with the request, and with the contact once the request is granted. A later grant's card replaces the grantor's earlier one; a card without `picture` removes the picture; a later grant without `profile` leaves what the receiver holds. When the grant that carried a card is revoked or expires, the receiver SHOULD stop showing it. That is a courtesy the sender cannot enforce: the receiver already holds the bytes.
 
+A grantee is sent no revocation: a `grant-revocation` goes to the grantor's authority and is not answered (above). The grantee learns of one only by what the grant stops admitting *(spec-gap 190)*: a presence subscription that presented the grant and that the authority ends with a `terminated` notify, reason `policy.terminated`, before the grant's `valid_until` (P§7). A receiver takes that as the revocation of the grants the subscription presented, for this purpose only: it stops showing the card they carried, and it decides nothing else by it. A receiver that does not watch the grantor's presence learns nothing, and for it the card ends with the grant's `valid_until`. A card dropped this way is not restored by being admitted again; the grantor's next grant that carries one is.
+
 #### UX requirement
 
 Introductions MUST NOT be rendered as calls, ring the device, or appear in call history. They belong in a distinct requests surface the user reviews deliberately. The entire design collapses if a spammer can make a phone buzz by sending introductions.
@@ -2860,6 +2862,9 @@ or rejects.
 - §10.3: a text in which a string or member name holds a lone surrogate, escaped or not, is not a payload
   (spec-gap 188). The text was silent and the implementations disagreed: one refused such a signed message and two
   accepted it. Found by probing with generated profile cards.
+- §19.4: how the receiver of a grant's profile card learns that the grant was revoked, which it is never sent: a
+  presence subscription that presented the grant ends `policy.terminated` before the grant's `valid_until`
+  (spec-gap 190). No message, schema or vector changes: what the authority sends was P§7's already.
 
 ---
 
