@@ -36,6 +36,8 @@ interface Session {
   /** Responder: the invite's `expires_at`. */
   inviteExpires?: number;
   outstanding: { id: string; direction: "outbound" | "inbound" } | null;
+  /** The outstanding update's `expires_at`: unanswered then, it lapses (§12.8 rule 7). */
+  updateExpires?: number;
   media: boolean;
   /** Consecutive `queued` progresses (§12.10). */
   requeues: number;
@@ -124,8 +126,18 @@ export class Endpoint {
         () => [
           ...[...this.grantsIssued.values()].filter((g) => g.keyScopes.length > 0 && !g.ended).map((g) => g.valid_until),
           ...this.due.values(),
+          ...[...this.sessions.values()].filter((s) => s.outstanding).map((s) => s.updateExpires!),
         ],
         () => {
+          // §12.8 rule 7: an update unanswered at its expires_at is no longer outstanding, in session id order. Its
+          // sender treats it as rejected, `session.expired`; its receiver may no longer answer it.
+          for (const id of [...this.sessions.keys()].sort()) {
+            const s = this.sessions.get(id)!;
+            if (!s.outstanding || s.updateExpires! > this.now) continue;
+            this.emit.push(s.outstanding.direction === "outbound"
+              ? { ui: "update_rejected", reason: "session.expired" } : { ui: "update_lapsed" });
+            s.outstanding = null;
+          }
           // P§12.5: shares reaching their valid_until end at that instant (spec-gap 141), in id order; then rotation
           for (const id of [...this.grantsIssued.keys()].sort()) {
             const g = this.grantsIssued.get(id)!;
@@ -324,6 +336,8 @@ export class Endpoint {
         // §12.8 rule 2: one outstanding update per session, across both directions
         if (s.outstanding) return void this.emit.push({ refused: "update-pending" });
         s.outstanding = { id: e["id"] as string, direction: "outbound" };
+        // §12.9: the update's validity, 30 s unless the trace names one
+        s.updateExpires = this.now + (typeof e["validity"] === "number" ? e["validity"] : 30);
         this.send("update", s.peer!, { session: id, id: e["id"]!, ...("answered_by" in e ? { answered_by: e["answered_by"]! } : {}) });
         return;
       case "answer_update":
@@ -639,6 +653,8 @@ export class Endpoint {
       } else {
         if (s.outstanding) this.emit.push({ ui: "update_rejected", reason: "session.glare" });
         s.outstanding = { id: theirs, direction: "inbound" };
+        // vectors README, "Update expiry": the trace's expires_at, or 30 s after its receipt
+        s.updateExpires = typeof m["expires_at"] === "number" ? m["expires_at"] : this.now + 30;
         this.emit.push({ ui: "update_offered" });
         // §14.4: an update may escalate a screening answer; the new `answered_by` is surfaced
         if (typeof m["answered_by"] === "string") this.emit.push({ ui: "answered", answered_by: effectiveAnsweredBy(m["answered_by"]) });

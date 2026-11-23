@@ -5706,7 +5706,7 @@ expired) and in the app (the card that came on a grant from that identity is dro
 
 ## 191. §12.8, §12.9 — an `update` that is never answered stays outstanding until `bye`
 
-**Found** 2026-11-23, adding video to a call under way in dsip-rs (#75) and the app (dsip-app #102). **Not decided.**
+**Found** 2026-11-23, adding video to a call under way in dsip-rs (#75) and the app (dsip-app #102). **Decided (2026-11-23, user): (b), the update's `expires_at`.**
 
 §12.8 rule 1 has an `update` answered with `answer` or `reject`, and rule 2 holds the sender in RENEGOTIATING
 "while an update is outstanding (sent but not yet answered or rejected)", one per session across both directions.
@@ -5734,8 +5734,16 @@ Choices:
 - **(c) Leave it.** `bye` is the only way out of an unanswered update; a client shows that the request is
   pending and offers to hang up.
 
-**Suggested: (b)**, since rule 2 counts the outstanding update across both directions and only (b) lets both
-sides know when it stopped being one.
+**Chosen: (b).** §12.8 rule 7 (a 1.0 erratum): an update is outstanding only while `now < expires_at`. Unanswered
+at that instant it lapses for both sides: the sender treats it as rejected, `session.expired`, and may offer again;
+the receiver must no longer answer or reject it. §12.9 names the update's validity (30 s by default; above 300 s
+not recommended). Rule 2 counts the outstanding update across both directions, and only (b) lets both sides know
+when it stopped being one.
 
-Until decided: dsip-rs and the Python and TypeScript harnesses keep an unanswered update outstanding until `bye`,
-which is (c) and what the present text says. No vector, no `Impl:` note: nothing was chosen.
+One race is left, and the rule says so: an `answer` sent just before the lapse can arrive after it. The sender
+discards it and SHOULD send a new `update`, which states its whole offer again (B§5.1), so that the two agree.
+An update that arrives already expired was never a question: the pipeline refuses it (`expired`).
+
+Vectors (hand-authored): `state/renegotiation-update-lapses-unanswered`, `state/renegotiation-inbound-update-lapses`,
+`state/renegotiation-ended-session-update-does-not-lapse`. The trace format gains `validity` on `local update`,
+`expires_at` on a received `update`, and the emission `ui update_lapsed` (vectors README, "Update expiry").

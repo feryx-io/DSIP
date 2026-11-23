@@ -333,7 +333,7 @@ attempt — through a scripted event sequence with a mock clock.
 | `{"local":"auto_reject","session":ID,"reason":TOKEN}` | policy rejects at OFFERED |
 | `{"local":"accept","session":ID,"answered_by":V}` | user/service answers → `answer` |
 | `{"local":"decline","session":ID,"reason"?}` | `reject` with `reason` (the host's choice, sent as given), or `user.declined` without one |
-| `{"local":"update","session":ID,"id":ULID,"answered_by":V?}` | send `update` |
+| `{"local":"update","session":ID,"id":ULID,"answered_by":V?,"validity":SECONDS?}` | send `update`; it expires `validity` seconds from now (default 30, §12.9) |
 | `{"local":"answer_update","session":ID,"in_reply_to":ULID}` | answer the inbound outstanding update; the `send` carries `answered_by: "user"` (the schema requires it on every `answer`); with no matching inbound update → `refused no-pending-update` |
 | `{"local":"reject_update","session":ID,"in_reply_to":ULID,"reason":TOKEN}` | reject it |
 | `{"local":"info","session":ID}` | send `info` |
@@ -349,12 +349,23 @@ With the policy on, an invite from an identity that is the grantee of no live `d
 is auto-rejected `policy.first-contact-required` without alerting. The invite's `grant` reference plays no part: it
 neither admits an identity that is not the grantee nor refuses one that is (spec-gap 151). Introductions never create a session.
 | `{"recv": MSG}` | a **verified** message arrives (signature, replay, schema already passed) |
-| `{"advance": SECONDS}` | advance the mock clock; expired timers fire in deadline order, ties by start order |
+| `{"advance": SECONDS}` | advance the mock clock; expired timers fire in deadline order, ties by start order; then outstanding updates lapse (below) |
+
+**Update expiry** (§12.8 rule 7, spec-gap 191). The outstanding update of a session has an `expires_at`: for one this
+endpoint sent, the instant of its `local update` step plus its `validity`; for one received, the `expires_at` of its
+`recv`, or 30 seconds after the step that received it when the trace gives none. An `advance` that brings the clock to
+that instant or past it ends it: the session has no outstanding update, and the step emits
+`{"ui": "update_rejected", "reason": "session.expired"}` for an update this endpoint sent, `{"ui": "update_lapsed"}`
+for one it received. At one instant, the session timers due fire first, then updates lapse in session id order, then
+whatever else the endpoint has due. An update answered, rejected, lost to glare or discarded (by `bye`, or rule 4)
+before its `expires_at` does not lapse. After a lapse the trace's existing rules apply unchanged: a reply naming it is
+`drop stale-update-reply`, a local answer or rejection of it `refused no-pending-update`, and a new `local update` is
+sent. (An `update` that is already expired when it arrives never reaches the engine: the pipeline refuses it, `expired`.)
 
 `MSG` is an abbreviated payload: `type`, `id`, `from`, `session` (except
 `invite`, whose `id` is the session), and the type-specific fields the
 transition depends on (`status`, `ring_timeout`, `queue_timeout`, `reason`,
-`answered_by`, `in_reply_to`, `about`, `expires_at` on `invite`, `to`).
+`answered_by`, `in_reply_to`, `about`, `expires_at` on `invite` and `update`, `to`).
 
 ### Endpoint presence keys (P§12.3, P§12.5; spec-gaps 157, 159, 161)
 
@@ -489,7 +500,7 @@ Only the sessions / attempts named in `expect` are compared (`{}` names none); `
 | `{"ui": "progress", "status": …}` | caller-side ringing/queued/etc. |
 | `{"ui": "answered", "answered_by": …}` | caller-side, including `screening` |
 | `{"ui": "offered"}` | responder-side invite admitted to OFFERED |
-| `{"ui": "update_offered"}` / `{"ui": "update_rejected", "reason": …}` | renegotiation surfaces |
+| `{"ui": "update_offered"}` / `{"ui": "update_rejected", "reason": …}` / `{"ui": "update_lapsed"}` | renegotiation surfaces (`update_lapsed`: the peer's update was not answered by its `expires_at`) |
 | `{"ui": "missed_call"}` | responder surfaces a missed call (never on `session.answered-elsewhere`) |
 | `{"ui": "ended", "reason": …}` | session reached ENDED because of a remote message or timer |
 | `{"ui": "glare_retry"}` | equal-id glare; MAY retry after 1–4 s |

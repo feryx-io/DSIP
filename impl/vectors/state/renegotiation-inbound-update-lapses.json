@@ -1,0 +1,404 @@
+{
+  "vector": "state/renegotiation-inbound-update-lapses",
+  "format": 1,
+  "kind": "state",
+  "description": "The peer's update, not answered by its expires_at, lapses: it may no longer be answered, and our own update may go. Without expires_at in the trace it lapses 30 s after its receipt; one rejected in time does not lapse.",
+  "spec_ref": [
+    "§12.8",
+    "§12.9"
+  ],
+  "context": {
+    "component": "endpoint",
+    "start": 1760000000,
+    "self": {
+      "device": "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn",
+      "identity": "did:key:z6MkrgXgMcSfqUQ6bhMEL1dhqvPYU4YaueY56Mw8aee9YN4R"
+    },
+    "identities": {
+      "did:key:z6Mkg9oRSg6APtrMJP8iekQm8yPc9ore3E4SJ5bF7Cw1qFCu": "did:key:z6MkhzX9qTeXBWkucyMVric1E9JrqUD5LPAkD2BNavakAptf",
+      "did:key:z6MkfhenvjQ7awdpVWzPaeBuPkXCBLwzJKyosCrTL3huMb66": "did:key:z6MkhzX9qTeXBWkucyMVric1E9JrqUD5LPAkD2BNavakAptf",
+      "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn": "did:key:z6MkrgXgMcSfqUQ6bhMEL1dhqvPYU4YaueY56Mw8aee9YN4R",
+      "did:key:z6Mkj2BxyZQc1YnUdPNkRDAd1GP2ZigPPhh6ZfYwf5HRMrtJ": "did:key:z6MkrgXgMcSfqUQ6bhMEL1dhqvPYU4YaueY56Mw8aee9YN4R",
+      "did:key:z6Mks5FEYf8Z7WygGqzyejjnf3VHupKMYBv4bKgEfW52wqmL": "did:key:z6Mkt5yU6sK3v7gxFHncQbmZ7VQvnVuJBGrDAbqhZp2gDW7G"
+    }
+  },
+  "input": {
+    "steps": [
+      {
+        "event": {
+          "recv": {
+            "type": "invite",
+            "id": "01K742SG00YYNVBMYAQK1CB31F",
+            "from": "did:key:z6Mkg9oRSg6APtrMJP8iekQm8yPc9ore3E4SJ5bF7Cw1qFCu",
+            "to": "did:web:example.com:users:bob",
+            "expires_at": 1760000030
+          }
+        },
+        "expect": {
+          "emit": [
+            {
+              "ui": "offered"
+            }
+          ],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "responder",
+              "state": "OFFERED",
+              "renegotiating": false,
+              "outstanding_update": null
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "local": "alert",
+          "session": "01K742SG00YYNVBMYAQK1CB31F",
+          "ring_timeout": 120
+        },
+        "expect": {
+          "emit": [
+            {
+              "send": {
+                "type": "progress",
+                "to": "did:key:z6Mkg9oRSg6APtrMJP8iekQm8yPc9ore3E4SJ5bF7Cw1qFCu",
+                "session": "01K742SG00YYNVBMYAQK1CB31F",
+                "status": "ringing",
+                "ring_timeout": 120
+              }
+            },
+            {
+              "timer": "start",
+              "name": "T-Ring-Local",
+              "seconds": 120
+            }
+          ],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "responder",
+              "state": "ALERTING",
+              "renegotiating": false,
+              "outstanding_update": null
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "advance": 3
+        },
+        "expect": {
+          "emit": [],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "responder",
+              "state": "ALERTING",
+              "renegotiating": false,
+              "outstanding_update": null
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "local": "accept",
+          "session": "01K742SG00YYNVBMYAQK1CB31F",
+          "answered_by": "user"
+        },
+        "expect": {
+          "emit": [
+            {
+              "timer": "stop",
+              "name": "T-Ring-Local"
+            },
+            {
+              "send": {
+                "type": "answer",
+                "to": "did:key:z6Mkg9oRSg6APtrMJP8iekQm8yPc9ore3E4SJ5bF7Cw1qFCu",
+                "session": "01K742SG00YYNVBMYAQK1CB31F",
+                "answered_by": "user"
+              }
+            },
+            {
+              "media": "start"
+            }
+          ],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "responder",
+              "state": "ACTIVE",
+              "renegotiating": false,
+              "outstanding_update": null
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "recv": {
+            "type": "update",
+            "id": "01K742WJM8TAD7YQWQXKGQYEWH",
+            "from": "did:key:z6Mkg9oRSg6APtrMJP8iekQm8yPc9ore3E4SJ5bF7Cw1qFCu",
+            "session": "01K742SG00YYNVBMYAQK1CB31F",
+            "expires_at": 1760000063
+          }
+        },
+        "expect": {
+          "emit": [
+            {
+              "ui": "update_offered"
+            }
+          ],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "responder",
+              "state": "ACTIVE",
+              "renegotiating": false,
+              "outstanding_update": {
+                "id": "01K742WJM8TAD7YQWQXKGQYEWH",
+                "direction": "inbound"
+              }
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "advance": 59
+        },
+        "expect": {
+          "emit": [],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "responder",
+              "state": "ACTIVE",
+              "renegotiating": false,
+              "outstanding_update": {
+                "id": "01K742WJM8TAD7YQWQXKGQYEWH",
+                "direction": "inbound"
+              }
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "advance": 1
+        },
+        "expect": {
+          "emit": [
+            {
+              "ui": "update_lapsed"
+            }
+          ],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "responder",
+              "state": "ACTIVE",
+              "renegotiating": false,
+              "outstanding_update": null
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "local": "answer_update",
+          "session": "01K742SG00YYNVBMYAQK1CB31F",
+          "in_reply_to": "01K742WJM8TAD7YQWQXKGQYEWH"
+        },
+        "expect": {
+          "emit": [
+            {
+              "refused": "no-pending-update"
+            }
+          ],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "responder",
+              "state": "ACTIVE",
+              "renegotiating": false,
+              "outstanding_update": null
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "local": "reject_update",
+          "session": "01K742SG00YYNVBMYAQK1CB31F",
+          "in_reply_to": "01K742WJM8TAD7YQWQXKGQYEWH",
+          "reason": "media.unsupported"
+        },
+        "expect": {
+          "emit": [
+            {
+              "refused": "no-pending-update"
+            }
+          ],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "responder",
+              "state": "ACTIVE",
+              "renegotiating": false,
+              "outstanding_update": null
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "recv": {
+            "type": "update",
+            "id": "01K742WKKGAC4BE3T7HEQWECGX",
+            "from": "did:key:z6Mkg9oRSg6APtrMJP8iekQm8yPc9ore3E4SJ5bF7Cw1qFCu",
+            "session": "01K742SG00YYNVBMYAQK1CB31F"
+          }
+        },
+        "expect": {
+          "emit": [
+            {
+              "ui": "update_offered"
+            }
+          ],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "responder",
+              "state": "ACTIVE",
+              "renegotiating": false,
+              "outstanding_update": {
+                "id": "01K742WKKGAC4BE3T7HEQWECGX",
+                "direction": "inbound"
+              }
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "advance": 30
+        },
+        "expect": {
+          "emit": [
+            {
+              "ui": "update_lapsed"
+            }
+          ],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "responder",
+              "state": "ACTIVE",
+              "renegotiating": false,
+              "outstanding_update": null
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "recv": {
+            "type": "update",
+            "id": "01K742WMJRASFC6H9N1GCDGNGP",
+            "from": "did:key:z6Mkg9oRSg6APtrMJP8iekQm8yPc9ore3E4SJ5bF7Cw1qFCu",
+            "session": "01K742SG00YYNVBMYAQK1CB31F",
+            "expires_at": 1760000123
+          }
+        },
+        "expect": {
+          "emit": [
+            {
+              "ui": "update_offered"
+            }
+          ],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "responder",
+              "state": "ACTIVE",
+              "renegotiating": false,
+              "outstanding_update": {
+                "id": "01K742WMJRASFC6H9N1GCDGNGP",
+                "direction": "inbound"
+              }
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "local": "reject_update",
+          "session": "01K742SG00YYNVBMYAQK1CB31F",
+          "in_reply_to": "01K742WMJRASFC6H9N1GCDGNGP",
+          "reason": "media.unsupported"
+        },
+        "expect": {
+          "emit": [
+            {
+              "send": {
+                "type": "reject",
+                "to": "did:key:z6Mkg9oRSg6APtrMJP8iekQm8yPc9ore3E4SJ5bF7Cw1qFCu",
+                "session": "01K742SG00YYNVBMYAQK1CB31F",
+                "reason": "media.unsupported",
+                "in_reply_to": "01K742WMJRASFC6H9N1GCDGNGP"
+              }
+            }
+          ],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "responder",
+              "state": "ACTIVE",
+              "renegotiating": false,
+              "outstanding_update": null
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "advance": 300
+        },
+        "expect": {
+          "emit": [],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "responder",
+              "state": "ACTIVE",
+              "renegotiating": false,
+              "outstanding_update": null
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "local": "update",
+          "session": "01K742SG00YYNVBMYAQK1CB31F",
+          "id": "01K742WNJ0EBQ2DQW3XW33WQKY"
+        },
+        "expect": {
+          "emit": [
+            {
+              "send": {
+                "type": "update",
+                "to": "did:key:z6Mkg9oRSg6APtrMJP8iekQm8yPc9ore3E4SJ5bF7Cw1qFCu",
+                "session": "01K742SG00YYNVBMYAQK1CB31F",
+                "id": "01K742WNJ0EBQ2DQW3XW33WQKY"
+              }
+            }
+          ],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "responder",
+              "state": "ACTIVE",
+              "renegotiating": true,
+              "outstanding_update": {
+                "id": "01K742WNJ0EBQ2DQW3XW33WQKY",
+                "direction": "outbound"
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "expect": {}
+}

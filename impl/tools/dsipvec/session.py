@@ -48,6 +48,7 @@ class Session:
     invite_expires_at: int | None = None
     answered_device: str | None = None
     outstanding: dict | None = None  # {"id":…, "direction": "outbound"|"inbound"}
+    update_expires_at: int | None = None  # §12.8 rule 7: the outstanding update's expires_at
     cancelled: bool = False          # initiator sent cancel (any reason)
     was_active: bool = False
     post_answer_seen: bool = False   # responder: initiator message observed after our answer
@@ -186,6 +187,7 @@ class Endpoint:
             instants = [t.deadline for t in self.timers]
             instants += [g["valid_until"] for g in self.grants_issued.values() if g["keys"] and not g["ended"]]
             instants += list(self.due.values())
+            instants += [s.update_expires_at for s in self.sessions.values() if s.outstanding is not None]
             instants = [t for t in instants if t <= target]
             if not instants:
                 break
@@ -197,6 +199,13 @@ class Endpoint:
                 t = min(due, key=lambda t: (t.deadline, t.seq))
                 self.timers.remove(t)
                 self.fire(t)
+            for sid in sorted(self.sessions):  # §12.8 rule 7: updates reaching their expires_at lapse, in session order
+                s = self.sessions[sid]
+                if s.outstanding is not None and s.update_expires_at <= self.now:
+                    outbound = s.outstanding["direction"] == "outbound"
+                    s.outstanding = None
+                    # the sender treats it as rejected (rule 5: prior state); the receiver may no longer answer it
+                    self.emit({"ui": "update_rejected", "reason": "session.expired"} if outbound else {"ui": "update_lapsed"})
             for gid in sorted(self.grants_issued):  # P§12.5: grants reaching their valid_until end, in id order
                 g = self.grants_issued[gid]
                 if g["keys"] and not g["ended"] and g["valid_until"] <= self.now:
@@ -425,6 +434,7 @@ class Endpoint:
             else:
                 self.send(type="update", to=s.peer, session=s.id, id=ev["id"], answered_by=ev.get("answered_by"))
                 s.outstanding = {"id": ev["id"], "direction": "outbound"}
+                s.update_expires_at = self.now + ev.get("validity", 30)  # §12.9: the update's validity, 30 s by default
         elif kind in ("answer_update", "reject_update"):
             if (s.state == "ACTIVE" and s.outstanding is not None and s.outstanding["direction"] == "inbound"
                     and s.outstanding["id"] == ev["in_reply_to"]):
@@ -725,6 +735,7 @@ class Endpoint:
                 self.error(m, "session.update-pending")
                 return
         s.outstanding = {"id": m["id"], "direction": "inbound"}
+        s.update_expires_at = m.get("expires_at", self.now + 30)  # the trace's default: 30 s from its receipt
         self.emit({"ui": "update_offered"})
         if "answered_by" in m:
             # §14.4 step 3: escalation signal (e.g. screening → user)
