@@ -1,0 +1,362 @@
+{
+  "vector": "state/renegotiation-update-lapses-unanswered",
+  "format": 1,
+  "kind": "state",
+  "description": "Our update, unanswered at its expires_at (30 s by default), lapses: treated as rejected session.expired, a late answer is dropped, and we may offer again. A validity we chose bounds the next one; an answered update does not lapse.",
+  "spec_ref": [
+    "§12.8",
+    "§12.9"
+  ],
+  "context": {
+    "component": "endpoint",
+    "start": 1760000000,
+    "self": {
+      "device": "did:key:z6Mkg9oRSg6APtrMJP8iekQm8yPc9ore3E4SJ5bF7Cw1qFCu",
+      "identity": "did:key:z6MkhzX9qTeXBWkucyMVric1E9JrqUD5LPAkD2BNavakAptf"
+    },
+    "identities": {
+      "did:key:z6Mkg9oRSg6APtrMJP8iekQm8yPc9ore3E4SJ5bF7Cw1qFCu": "did:key:z6MkhzX9qTeXBWkucyMVric1E9JrqUD5LPAkD2BNavakAptf",
+      "did:key:z6MkfhenvjQ7awdpVWzPaeBuPkXCBLwzJKyosCrTL3huMb66": "did:key:z6MkhzX9qTeXBWkucyMVric1E9JrqUD5LPAkD2BNavakAptf",
+      "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn": "did:key:z6MkrgXgMcSfqUQ6bhMEL1dhqvPYU4YaueY56Mw8aee9YN4R",
+      "did:key:z6Mkj2BxyZQc1YnUdPNkRDAd1GP2ZigPPhh6ZfYwf5HRMrtJ": "did:key:z6MkrgXgMcSfqUQ6bhMEL1dhqvPYU4YaueY56Mw8aee9YN4R",
+      "did:key:z6Mks5FEYf8Z7WygGqzyejjnf3VHupKMYBv4bKgEfW52wqmL": "did:key:z6Mkt5yU6sK3v7gxFHncQbmZ7VQvnVuJBGrDAbqhZp2gDW7G"
+    }
+  },
+  "input": {
+    "steps": [
+      {
+        "event": {
+          "local": "place_call",
+          "session": "01K742SG00YYNVBMYAQK1CB31F",
+          "to": "did:web:example.com:users:bob"
+        },
+        "expect": {
+          "emit": [
+            {
+              "send": {
+                "type": "invite",
+                "to": "did:web:example.com:users:bob",
+                "session": "01K742SG00YYNVBMYAQK1CB31F"
+              }
+            },
+            {
+              "timer": "start",
+              "name": "T-Establish",
+              "seconds": 15
+            }
+          ],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "initiator",
+              "state": "INVITING",
+              "renegotiating": false,
+              "outstanding_update": null
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "advance": 2
+        },
+        "expect": {
+          "emit": [],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "initiator",
+              "state": "INVITING",
+              "renegotiating": false,
+              "outstanding_update": null
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "recv": {
+            "type": "progress",
+            "id": "01K742SHYG307P9607A0N8THB8",
+            "from": "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn",
+            "session": "01K742SG00YYNVBMYAQK1CB31F",
+            "status": "ringing",
+            "ring_timeout": 120
+          }
+        },
+        "expect": {
+          "emit": [
+            {
+              "timer": "stop",
+              "name": "T-Establish"
+            },
+            {
+              "ui": "progress",
+              "status": "ringing"
+            },
+            {
+              "timer": "start",
+              "name": "T-Ring",
+              "seconds": 120
+            }
+          ],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "initiator",
+              "state": "PROCEEDING",
+              "renegotiating": false,
+              "outstanding_update": null
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "advance": 5
+        },
+        "expect": {
+          "emit": [],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "initiator",
+              "state": "PROCEEDING",
+              "renegotiating": false,
+              "outstanding_update": null
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "recv": {
+            "type": "answer",
+            "id": "01K742SPTRVD6RG3ANPVBWAGTY",
+            "from": "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn",
+            "session": "01K742SG00YYNVBMYAQK1CB31F",
+            "answered_by": "user"
+          }
+        },
+        "expect": {
+          "emit": [
+            {
+              "timer": "stop",
+              "name": "T-Ring"
+            },
+            {
+              "media": "start"
+            },
+            {
+              "ui": "answered",
+              "answered_by": "user"
+            },
+            {
+              "send": {
+                "type": "cancel",
+                "to": "did:web:example.com:users:bob",
+                "session": "01K742SG00YYNVBMYAQK1CB31F",
+                "reason": "session.answered-elsewhere"
+              }
+            }
+          ],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "initiator",
+              "state": "ACTIVE",
+              "renegotiating": false,
+              "outstanding_update": null
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "local": "update",
+          "session": "01K742SG00YYNVBMYAQK1CB31F",
+          "id": "01K742WJM8TAD7YQWQXKGQYEWH"
+        },
+        "expect": {
+          "emit": [
+            {
+              "send": {
+                "type": "update",
+                "to": "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn",
+                "session": "01K742SG00YYNVBMYAQK1CB31F",
+                "id": "01K742WJM8TAD7YQWQXKGQYEWH"
+              }
+            }
+          ],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "initiator",
+              "state": "ACTIVE",
+              "renegotiating": true,
+              "outstanding_update": {
+                "id": "01K742WJM8TAD7YQWQXKGQYEWH",
+                "direction": "outbound"
+              }
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "advance": 29
+        },
+        "expect": {
+          "emit": [],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "initiator",
+              "state": "ACTIVE",
+              "renegotiating": true,
+              "outstanding_update": {
+                "id": "01K742WJM8TAD7YQWQXKGQYEWH",
+                "direction": "outbound"
+              }
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "advance": 1
+        },
+        "expect": {
+          "emit": [
+            {
+              "ui": "update_rejected",
+              "reason": "session.expired"
+            }
+          ],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "initiator",
+              "state": "ACTIVE",
+              "renegotiating": false,
+              "outstanding_update": null
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "recv": {
+            "type": "answer",
+            "id": "01K742TK505F0068GJS5JDD1CZ",
+            "from": "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn",
+            "session": "01K742SG00YYNVBMYAQK1CB31F",
+            "answered_by": "user",
+            "in_reply_to": "01K742WJM8TAD7YQWQXKGQYEWH"
+          }
+        },
+        "expect": {
+          "emit": [
+            {
+              "drop": "stale-update-reply"
+            }
+          ],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "initiator",
+              "state": "ACTIVE",
+              "renegotiating": false,
+              "outstanding_update": null
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "local": "update",
+          "session": "01K742SG00YYNVBMYAQK1CB31F",
+          "id": "01K742WKKGAC4BE3T7HEQWECGX",
+          "validity": 120
+        },
+        "expect": {
+          "emit": [
+            {
+              "send": {
+                "type": "update",
+                "to": "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn",
+                "session": "01K742SG00YYNVBMYAQK1CB31F",
+                "id": "01K742WKKGAC4BE3T7HEQWECGX"
+              }
+            }
+          ],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "initiator",
+              "state": "ACTIVE",
+              "renegotiating": true,
+              "outstanding_update": {
+                "id": "01K742WKKGAC4BE3T7HEQWECGX",
+                "direction": "outbound"
+              }
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "advance": 119
+        },
+        "expect": {
+          "emit": [],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "initiator",
+              "state": "ACTIVE",
+              "renegotiating": true,
+              "outstanding_update": {
+                "id": "01K742WKKGAC4BE3T7HEQWECGX",
+                "direction": "outbound"
+              }
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "recv": {
+            "type": "answer",
+            "id": "01K742Y8B049K60FA75AB1D5MD",
+            "from": "did:key:z6Mks11tjMeRnE1JceWhyT7zEToX4z3L6BuKaM13PbTEdApn",
+            "session": "01K742SG00YYNVBMYAQK1CB31F",
+            "answered_by": "user",
+            "in_reply_to": "01K742WKKGAC4BE3T7HEQWECGX"
+          }
+        },
+        "expect": {
+          "emit": [
+            {
+              "media": "apply_update"
+            }
+          ],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "initiator",
+              "state": "ACTIVE",
+              "renegotiating": false,
+              "outstanding_update": null
+            }
+          }
+        }
+      },
+      {
+        "event": {
+          "advance": 300
+        },
+        "expect": {
+          "emit": [],
+          "sessions": {
+            "01K742SG00YYNVBMYAQK1CB31F": {
+              "role": "initiator",
+              "state": "ACTIVE",
+              "renegotiating": false,
+              "outstanding_update": null
+            }
+          }
+        }
+      }
+    ]
+  },
+  "expect": {}
+}

@@ -616,6 +616,60 @@ def vectors() -> list[dict]:
                               **{sid: sess("initiator", "ENDED")}),
                      ]))
 
+    # §12.8 rule 7 (spec-gap 191): an update is outstanding only while it is valid; unanswered at its expires_at, it lapses
+    A_ACT, B_ACT = NOW + 7, NOW + 3  # the clock when initiator_to_active / responder_to_active end
+    ob = lambda u: {"id": u, "direction": "outbound"}
+    ib = lambda u: {"id": u, "direction": "inbound"}
+    out.append(trace("renegotiation-update-lapses-unanswered",
+                     "Our update, unanswered at its expires_at (30 s by default), lapses: treated as rejected session.expired, a late answer is dropped, and we may offer again. A validity we chose bounds the next one; an answered update does not lapse.",
+                     ["§12.8", "§12.9"], ALICE_SELF, initiator_to_active(sid) + [
+                         step({"local": "update", "session": sid, "id": u1}, [S(type="update", to=BPH, session=sid, id=u1)],
+                              **{sid: sess("initiator", "ACTIVE", ob(u1))}),
+                         step({"advance": 29}, [], **{sid: sess("initiator", "ACTIVE", ob(u1))}),
+                         step({"advance": 1}, [UI("update_rejected", reason="session.expired")], **{sid: sess("initiator", "ACTIVE")}),
+                         step({"recv": msg("answer", "ua1", BPH, sid, A_ACT + 29, answered_by="user", in_reply_to=u1)},
+                              [{"drop": "stale-update-reply"}], **{sid: sess("initiator", "ACTIVE")}),
+                         step({"local": "update", "session": sid, "id": u2, "validity": 120},
+                              [S(type="update", to=BPH, session=sid, id=u2)], **{sid: sess("initiator", "ACTIVE", ob(u2))}),
+                         step({"advance": 119}, [], **{sid: sess("initiator", "ACTIVE", ob(u2))}),
+                         step({"recv": msg("answer", "ua2", BPH, sid, A_ACT + 149, answered_by="user", in_reply_to=u2)},
+                              [MEDIA("apply_update")], **{sid: sess("initiator", "ACTIVE")}),
+                         step({"advance": 300}, [], **{sid: sess("initiator", "ACTIVE")}),
+                     ]))
+    out.append(trace("renegotiation-inbound-update-lapses",
+                     "The peer's update, not answered by its expires_at, lapses: it may no longer be answered, and our own update may go. Without expires_at in the trace it lapses 30 s after its receipt; one rejected in time does not lapse.",
+                     ["§12.8", "§12.9"], BOBPH_SELF, responder_to_active(sid) + [
+                         step({"recv": msg("update", "u1", APH, sid, NOW + 101, expires_at=B_ACT + 60)}, [UI("update_offered")],
+                              **{sid: sess("responder", "ACTIVE", ib(u1))}),
+                         step({"advance": 59}, [], **{sid: sess("responder", "ACTIVE", ib(u1))}),
+                         step({"advance": 1}, [UI("update_lapsed")], **{sid: sess("responder", "ACTIVE")}),
+                         step({"local": "answer_update", "session": sid, "in_reply_to": u1}, [{"refused": "no-pending-update"}],
+                              **{sid: sess("responder", "ACTIVE")}),
+                         step({"local": "reject_update", "session": sid, "in_reply_to": u1, "reason": "media.unsupported"},
+                              [{"refused": "no-pending-update"}], **{sid: sess("responder", "ACTIVE")}),
+                         step({"recv": msg("update", "u2", APH, sid, NOW + 102)}, [UI("update_offered")],
+                              **{sid: sess("responder", "ACTIVE", ib(u2))}),
+                         step({"advance": 30}, [UI("update_lapsed")], **{sid: sess("responder", "ACTIVE")}),
+                         step({"recv": msg("update", "u3", APH, sid, NOW + 103, expires_at=B_ACT + 120)}, [UI("update_offered")],
+                              **{sid: sess("responder", "ACTIVE", ib(u3))}),
+                         step({"local": "reject_update", "session": sid, "in_reply_to": u3, "reason": "media.unsupported"},
+                              [S(type="reject", to=APH, session=sid, reason="media.unsupported", in_reply_to=u3)],
+                              **{sid: sess("responder", "ACTIVE")}),
+                         step({"advance": 300}, [], **{sid: sess("responder", "ACTIVE")}),
+                         step({"local": "update", "session": sid, "id": u4}, [S(type="update", to=APH, session=sid, id=u4)],
+                              **{sid: sess("responder", "ACTIVE", ob(u4))}),
+                     ]))
+    out.append(trace("renegotiation-ended-session-update-does-not-lapse",
+                     "bye discards the outstanding update (rule 6): nothing lapses afterwards.", ["§12.8"], ALICE_SELF,
+                     initiator_to_active(sid) + [
+                         step({"local": "update", "session": sid, "id": u1}, [S(type="update", to=BPH, session=sid, id=u1)],
+                              **{sid: sess("initiator", "ACTIVE", ob(u1))}),
+                         step({"advance": 10}, [], **{sid: sess("initiator", "ACTIVE", ob(u1))}),
+                         step({"local": "hangup", "session": sid}, [S(type="bye", to=BPH, session=sid, reason="user.hangup"), MEDIA("stop")],
+                              **{sid: sess("initiator", "ENDED")}),
+                         step({"advance": 60}, [], **{sid: sess("initiator", "ENDED")}),
+                     ]))
+
     # bye with a caller-supplied reason (B§8: a failed media path ends the leg with media.failed)
     out.append(trace("hangup-with-reason-media-failed", "A local hangup may name the reason; the media layer ends a failed path with bye media.failed (B§8) instead of user.hangup.",
                      ["§12.4", "B§8"], ALICE_SELF, initiator_to_active(sid) + [
